@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class Branch(Base, AuditMixin):
     __tablename__ = "branches"
 
-    name: Mapped[str]
+    name: Mapped[str] = mapped_column(unique=True, index=True)
 
     tables: Mapped[list["RestaurantTable"]] = relationship(
         back_populates="branch", cascade="all, delete-orphan"

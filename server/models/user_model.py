@@ -14,7 +14,7 @@ class User(Base, AuditMixin):
     __tablename__ = "users"
 
     branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
-    username: Mapped[str]
+    username: Mapped[str] = mapped_column(unique=True, index=True)
     role: Mapped[RoleEnum] = mapped_column(default=RoleEnum.CASHIER)
     hashed_password: Mapped[str]
     is_active: Mapped[bool] = mapped_column(default=True)
