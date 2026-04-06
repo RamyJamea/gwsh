@@ -1,13 +1,16 @@
-import os
+# import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+
+# from fastapi.staticfiles import StaticFiles
 
 # from fastapi.responses import FileResponse
 from .core import ENGINE, seed_admin_user
 from .models import *
 from .routes import auth_router, user_router
+from .routes import branch_router, table_router
+from .routes import category_router, product_router, size_router, extra_router
 
 
 @asynccontextmanager
@@ -38,7 +41,12 @@ app.add_middleware(
 
 app.include_router(user_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
-
+app.include_router(branch_router, prefix="/api/v1")
+app.include_router(table_router, prefix="/api/v1")
+app.include_router(category_router, prefix="/api/v1")
+app.include_router(product_router, prefix="/api/v1")
+app.include_router(size_router, prefix="/api/v1")
+app.include_router(extra_router, prefix="/api/v1")
 
 # @app.get("/app", tags=["Frontend"])
 # def serve_frontend():
