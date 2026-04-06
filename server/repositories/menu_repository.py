@@ -9,6 +9,16 @@ class MenuItemRepository(BaseRepository[MenuItem]):
     def __init__(self, session: Session):
         super().__init__(session, MenuItem)
 
+    def get_by_branch_product_size(
+        self, branch_id: int, product_id: int, size_id: int
+    ) -> MenuItem | None:
+        stmt = select(self.model).where(
+            self.model.branch_id == branch_id,
+            self.model.product_id == product_id,
+            self.model.size_id == size_id,
+        )
+        return self.session.scalars(stmt).first()
+
     def get_by_branch(
         self, branch_id: int, skip: int = 0, limit: int = 100
     ) -> Sequence[MenuItem]:
