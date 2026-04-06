@@ -32,9 +32,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-current_dir = os.path.dirname(os.path.realpath(__file__))
-frontend_path = os.path.join(current_dir, "..", "frontend")
-app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+# current_dir = os.path.dirname(os.path.realpath(__file__))
+# frontend_path = os.path.join(current_dir, "..", "frontend")
+# app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
 app.include_router(user_router)
 app.include_router(auth_router)
