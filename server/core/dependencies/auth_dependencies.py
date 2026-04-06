@@ -1,11 +1,11 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from ..config import get_settings
-from ..enums import RoleEnum
-from ..dependencies import get_user_service
 from ...models import User
 from ...services import UserService
+from ..config import get_settings
+from ..enums import RoleEnum
+from .services_dependencies import get_user_service
 
 SETTINGS = get_settings()
 
