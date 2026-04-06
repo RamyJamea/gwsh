@@ -11,6 +11,7 @@ from .models import *
 from .routes import auth_router, user_router
 from .routes import branch_router, table_router
 from .routes import category_router, product_router, size_router, extra_router
+from .routes import order_router, history_router
 
 
 @asynccontextmanager
@@ -47,6 +48,8 @@ app.include_router(category_router, prefix="/api/v1")
 app.include_router(product_router, prefix="/api/v1")
 app.include_router(size_router, prefix="/api/v1")
 app.include_router(extra_router, prefix="/api/v1")
+app.include_router(order_router, prefix="/api/v1")
+app.include_router(history_router, prefix="/api/v1")
 
 # @app.get("/app", tags=["Frontend"])
 # def serve_frontend():

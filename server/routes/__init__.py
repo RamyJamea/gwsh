@@ -6,3 +6,5 @@ from .category_router import router as category_router
 from .product_router import router as product_router
 from .size_router import router as size_router
 from .extra_router import router as extra_router
+from .order_router import router as order_router
+from .history_router import router as history_router
