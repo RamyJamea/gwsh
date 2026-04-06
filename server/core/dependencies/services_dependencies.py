@@ -5,6 +5,7 @@ from ...services import AuthenticationService, UserService
 from ...services import BranchService, TableService
 from ...services import CategoryService, ProductService, SizeService, ExtraService
 from ...services import MenuService
+from ...services import OrderService
 
 
 def get_user_service(db: Session = Depends(get_db)) -> UserService:
@@ -43,3 +44,7 @@ def get_extra_service(db: Session = Depends(get_db)) -> ExtraService:
 
 def get_menu_service(db: Session = Depends(get_db)) -> MenuService:
     return MenuService(db)
+
+
+def get_order_service(db: Session = Depends(get_db)) -> OrderService:
+    return OrderService(db)
