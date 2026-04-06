@@ -1,7 +1,10 @@
+from typing import TYPE_CHECKING
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey
 from .base_model import Base, AuditMixin
-from .menu_model import MenuItem, MenuItemExtra
+
+if TYPE_CHECKING:
+    from .menu_model import MenuItem, MenuItemExtra
 
 
 class Product(Base, AuditMixin):

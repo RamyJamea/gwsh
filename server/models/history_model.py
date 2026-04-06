@@ -1,11 +1,14 @@
+from typing import TYPE_CHECKING
 from datetime import datetime
 from decimal import Decimal
 from sqlalchemy import ForeignKey, func, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .base_model import Base, AuditMixin
-from .order_model import Order
-from .user_model import User
 from ..core.enums import ActionEnum
+from .base_model import Base, AuditMixin
+
+if TYPE_CHECKING:
+    from .order_model import Order
+    from .user_model import User
 
 
 class OrderHistory(Base, AuditMixin):

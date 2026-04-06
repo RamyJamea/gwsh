@@ -1,10 +1,13 @@
+from typing import TYPE_CHECKING
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey
 from ..core.enums import RoleEnum
 from .base_model import Base, AuditMixin
-from .branch_model import Branch
-from .history_model import OrderHistory
-from .order_model import Order
+
+if TYPE_CHECKING:
+    from .branch_model import Branch
+    from .history_model import OrderHistory
+    from .order_model import Order
 
 
 class User(Base, AuditMixin):

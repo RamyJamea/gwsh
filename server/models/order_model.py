@@ -1,12 +1,15 @@
+from typing import TYPE_CHECKING
 from decimal import Decimal
 from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .base_model import Base, AuditMixin
-from .branch_model import Branch, RestaurantTable
-from .user_model import User
-from .history_model import OrderHistory
-from .menu_model import MenuItem
 from ..core.enums import ActionEnum, PaymentEnum
+from .base_model import Base, AuditMixin
+
+if TYPE_CHECKING:
+    from .branch_model import Branch, RestaurantTable
+    from .user_model import User
+    from .history_model import OrderHistory
+    from .menu_model import MenuItem
 
 
 class Order(Base, AuditMixin):

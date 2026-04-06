@@ -1,10 +1,13 @@
+from typing import TYPE_CHECKING
 from decimal import Decimal
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, UniqueConstraint, Numeric
 from .base_model import Base, AuditMixin
-from .catalog_model import Product, Size, Extra
-from .branch_model import Branch
-from .order_model import OrderItem
+
+if TYPE_CHECKING:
+    from .catalog_model import Product, Size, Extra
+    from .branch_model import Branch
+    from .order_model import OrderItem
 
 
 class MenuItemExtra(Base, AuditMixin):

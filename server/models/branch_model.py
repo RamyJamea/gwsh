@@ -1,9 +1,12 @@
+from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base_model import Base, AuditMixin
-from .user_model import User
-from .menu_model import MenuItem
-from .order_model import Order
+
+if TYPE_CHECKING:
+    from .user_model import User
+    from .menu_model import MenuItem
+    from .order_model import Order
 
 
 class Branch(Base, AuditMixin):
