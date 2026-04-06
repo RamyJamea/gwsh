@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS • Inventory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap');
+
+        :root {
+            font-family: 'Inter', system_ui, sans-serif;
+        }
+
+        .tail-container * {
+            font-family: 'Inter', system_ui, sans-serif;
+        }
+
+        .sidebar-link {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar-link.active {
+            background-color: #4f46e5;
+            color: white;
+            border-radius: 12px;
+        }
+
+        .modal {
+            animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes modalPop {
+            0% {
+                transform: scale(0.95);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .toast {
+            animation: toastIn 0.3s ease forwards;
+        }
+
+        .kpi-card {
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+
+<body class="tail-container">
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div class="w-full max-w-md mx-4 bg-white rounded-3xl shadow-2xl overflow-hidden">
+            <div class="px-8 pt-10 pb-8">
+                <!-- Header -->
+                <div class="flex items-center justify-center gap-3 mb-8">
+                    <div
+                        class="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl">
+                        🛒</div>
+                    <h1 class="text-3xl font-semibold tracking-tight text-slate-900">POSify</h1>
+                </div>
+
+                <h2 class="text-2xl font-semibold text-center mb-2 text-slate-800">Welcome back</h2>
+                <p class="text-slate-500 text-center mb-8">Sign in to manage your store</p>
+
+                <!-- Login Form -->
+                <form id="login-form" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Username</label>
+                        <input id="username" type="text" required
+                            class="w-full px-4 py-3.5 bg-slate-100 border border-transparent focus:border-indigo-300 focus:bg-white rounded-2xl outline-none transition text-slate-900"
+                            placeholder="cashier01">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+                        <input id="password" type="password" required
+                            class="w-full px-4 py-3.5 bg-slate-100 border border-transparent focus:border-indigo-300 focus:bg-white rounded-2xl outline-none transition text-slate-900"
+                            placeholder="••••••••">
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 transition text-white font-semibold py-4 rounded-2xl text-lg shadow-inner flex items-center justify-center gap-2">
+                        <span>Sign in</span>
+                        <span class="text-xl">→</span>
+                    </button>
+                </form>
+
+                <div class="mt-8 text-center text-xs text-slate-400">
+                    Demo credentials: username <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded">admin</span> /
+                    password <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded">admin123</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD LAYOUT -->
+    <div id="dashboard-screen" class="hidden min-h-screen flex bg-slate-100">
+
+        <!-- SIDEBAR -->
+        <div class="w-72 bg-slate-900 text-white flex flex-col h-screen">
+
+            <!-- Logo -->
+            <div class="px-6 py-8 border-b border-slate-800 flex items-center gap-3">
+                <div
+                    class="w-9 h-9 bg-white text-slate-900 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0">
+                    🛒</div>
+                <div>
+                    <h1 class="font-semibold tracking-tighter text-3xl">POSify</h1>
+                    <p class="text-xs text-slate-400 -mt-1">Inventory • Sales</p>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 px-3 py-6 space-y-1">
+                <div onclick="navigateTo('pos')"
+                    class="sidebar-link flex items-center gap-3 px-5 py-4 text-slate-300 hover:text-white cursor-pointer"
+                    id="nav-pos">
+                    <span class="text-2xl">📍</span>
+                    <span class="font-medium text-lg">Point of Sale</span>
+                </div>
+                <div onclick="navigateTo('products')"
+                    class="sidebar-link flex items-center gap-3 px-5 py-4 text-slate-300 hover:text-white cursor-pointer"
+                    id="nav-products">
+                    <span class="text-2xl">📦</span>
+                    <span class="font-medium text-lg">Products</span>
+                </div>
+                <div onclick="navigateTo('orders')"
+                    class="sidebar-link flex items-center gap-3 px-5 py-4 text-slate-300 hover:text-white cursor-pointer"
+                    id="nav-orders">
+                    <span class="text-2xl">📋</span>
+                    <span class="font-medium text-lg">Orders</span>
+                </div>
+                <!-- NEW: Analytics -->
+                <div onclick="navigateTo('analytics')"
+                    class="sidebar-link flex items-center gap-3 px-5 py-4 text-slate-300 hover:text-white cursor-pointer"
+                    id="nav-analytics">
+                    <span class="text-2xl">📊</span>
+                    <span class="font-medium text-lg">Analytics</span>
+                </div>
+            </nav>
+
+            <!-- User footer -->
+            <div class="border-t border-slate-800 p-6">
+                <div onclick="logout()"
+                    class="flex items-center gap-3 px-4 py-3 hover:bg-slate-800 rounded-2xl cursor-pointer transition">
+                    <div class="flex-1">
+                        <p id="sidebar-user-name" class="font-medium"></p>
+                        <p id="sidebar-user-role" class="text-xs text-slate-400"></p>
+                    </div>
+                    <div class="text-2xl">🚪</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="flex-1 flex flex-col">
+
+            <!-- Top Header -->
+            <div class="h-16 bg-white border-b flex items-center px-8 justify-between">
+                <div class="flex items-center gap-4">
+                    <h1 id="view-title" class="text-3xl font-semibold text-slate-800">Point of Sale</h1>
+                </div>
+
+                <div class="flex items-center gap-6">
+                    <!-- User info -->
+                    <div class="flex items-center gap-3">
+                        <div class="text-right">
+                            <p id="header-user-name" class="font-semibold text-slate-700"></p>
+                            <p id="header-user-role" class="text-xs text-slate-500"></p>
+                        </div>
+                        <div
+                            class="w-9 h-9 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl">
+                            👤</div>
+                    </div>
+
+                    <!-- Refresh button -->
+                    <button onclick="refreshCurrentView()"
+                        class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-600 text-sm font-medium transition">
+                        <span class="text-lg">↻</span>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Content -->
+            <div id="main-content" class="flex-1 p-8 overflow-auto">
+                <!-- Populated by JS render functions -->
+            </div>
+        </div>
+    </div>
+
+    <!-- PRODUCT MODAL (unchanged) -->
+    <div id="product-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div class="modal bg-white rounded-3xl w-full max-w-lg mx-4 p-8">
+            <h3 id="modal-title" class="text-2xl font-semibold mb-6">Add New Product</h3>
+
+            <form id="product-form" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-2">Product Name</label>
+                    <input id="product-name" type="text"
+                        class="w-full px-5 py-4 border border-slate-200 focus:border-indigo-400 rounded-2xl outline-none text-lg">
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-2">Price ($)</label>
+                        <input id="product-price" type="number" step="0.01" min="0.01"
+                            class="w-full px-5 py-4 border border-slate-200 focus:border-indigo-400 rounded-2xl outline-none text-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-2">Quantity in Stock</label>
+                        <input id="product-quantity" type="number" min="0"
+                            class="w-full px-5 py-4 border border-slate-200 focus:border-indigo-400 rounded-2xl outline-none text-lg">
+                    </div>
+                </div>
+
+                <div class="flex gap-4 pt-4">
+                    <button type="button" onclick="closeProductModal()"
+                        class="flex-1 py-4 text-slate-500 font-medium border border-slate-200 rounded-2xl hover:bg-slate-50 transition">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="flex-1 py-4 bg-indigo-600 text-white font-semibold rounded-2xl hover:bg-indigo-700 transition">
+                        Save Product
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ORDER DETAIL MODAL (unchanged) -->
+    <div id="order-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div class="modal bg-white rounded-3xl w-full max-w-2xl mx-4 p-8 max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-2xl font-semibold">Order <span id="modal-order-id"
+                            class="font-mono text-indigo-600"></span></h3>
+                    <p id="modal-order-date" class="text-slate-500"></p>
+                </div>
+                <button onclick="closeOrderModal()" class="text-4xl text-slate-300 hover:text-slate-400">×</button>
+            </div>
+
+            <div class="flex-1 overflow-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b text-left text-sm text-slate-400">
+                            <th class="pb-3 font-medium">Item</th>
+                            <th class="pb-3 font-medium text-right">Qty</th>
+                            <th class="pb-3 font-medium text-right">Unit Price</th>
+                            <th class="pb-3 font-medium text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="order-items-body" class="divide-y text-slate-700"></tbody>
+                </table>
+            </div>
+
+            <div class="pt-6 border-t mt-auto">
+                <div class="flex justify-between items-baseline">
+                    <div class="text-slate-500">Status</div>
+                    <div id="modal-order-status" class="px-5 py-1 text-sm font-medium rounded-3xl"></div>
+                </div>
+                <div class="flex justify-between text-3xl font-semibold mt-2">
+                    <span>Total</span>
+                    <span id="modal-order-total" class="text-indigo-600"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2"></div>
+
+    <script>
+        // ====================== CONFIG ======================
+        const API_BASE = 'http://localhost:8000'
+        const LOW_STOCK_THRESHOLD = 10
+
+        // ====================== STATE ======================
+        let token = null
+        let currentUser = null
+        let productsCache = {}          // id → product object
+        let currentCart = []            // { id, name, price, qty }
+        let currentView = 'pos'
+        let editingProductId = null
+        let currentOrders = []          // cache for order modal quick access
+        let analyticsChart = null       // Chart.js instance
+
+        // ====================== CORE API HELPER ======================
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const headers = {
+                ...(token && { Authorization: `Bearer ${token}` })
+            }
+
+            let fetchBody = null
+
+            if (body) {
+                if (body instanceof URLSearchParams) {
+                    headers['Content-Type'] = 'application/x-www-form-urlencoded'
+                    fetchBody = body
+                } else {
+                    headers['Content-Type'] = 'application/json'
+                    fetchBody = JSON.stringify(body)
+                }
+            }
+
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                method,
+                headers,
+                body: fetchBody
+            })
+
+            // Auto logout on 401
+            if (response.status === 401) {
+                showToast('Session expired. Please login again.', true)
+                logout()
+                return null
+            }
+
+            if (!response.ok) {
+                let errorMsg = 'Something went wrong'
+                try {
+                    const errJson = await response.json()
+                    errorMsg = errJson.detail || errorMsg
+                } catch (e) { }
+                throw new Error(errorMsg)
+            }
+
+            if (response.status === 204 || response.headers.get('content-length') === '0') {
+                return null
+            }
+
+            return await response.json()
+        }
+
+        // ====================== TOAST NOTIFICATIONS ======================
+        function showToast(message, isError = false) {
+            const container = document.getElementById('toast-container')
+
+            const toast = document.createElement('div')
+            toast.className = `toast flex items-center gap-3 px-6 py-4 rounded-3xl shadow-2xl text-white min-w-[300px] ${isError ? 'bg-red-500' : 'bg-emerald-500'}`
+            toast.innerHTML = `
+                ${isError ? '❌' : '✅'}
+                <span class="flex-1 font-medium">${message}</span>
+            `
+            container.appendChild(toast)
+
+            setTimeout(() => {
+                toast.style.transitionDuration = '300ms'
+                toast.style.opacity = '0'
+                setTimeout(() => toast.remove(), 300)
+            }, 3500)
+        }
+
+        // ====================== AUTH ======================
+        async function handleLogin(e) {
+            e.preventDefault()
+
+            const username = document.getElementById('username').value.trim()
+            const password = document.getElementById('password').value.trim()
+
+            if (!username || !password) return
+
+            try {
+                const formData = new URLSearchParams()
+                formData.append('username', username)
+                formData.append('password', password)
+
+                const result = await apiCall('/auth/login', 'POST', formData)
+
+                if (result && result.access_token) {
+                    token = result.access_token
+                    localStorage.setItem('access_token', token)
+
+                    currentUser = await apiCall('/users/me')
+
+                    document.getElementById('login-screen').classList.add('hidden')
+                    document.getElementById('dashboard-screen').classList.remove('hidden')
+
+                    updateUserUI()
+                    navigateTo('pos')
+
+                    showToast('Welcome back, ' + (currentUser.full_name || currentUser.username) + '!')
+                }
+            } catch (err) {
+                showToast(err.message || 'Invalid credentials', true)
+            }
+        }
+
+        function logout() {
+            token = null
+            currentUser = null
+            currentCart = []
+            if (analyticsChart) {
+                analyticsChart.destroy()
+                analyticsChart = null
+            }
+            localStorage.removeItem('access_token')
+
+            document.getElementById('dashboard-screen').classList.add('hidden')
+            document.getElementById('login-screen').classList.remove('hidden')
+
+            document.getElementById('main-content').innerHTML = ''
+            showToast('Logged out successfully')
+        }
+
+        function updateUserUI() {
+            const name = currentUser.full_name || currentUser.username || 'User'
+            const role = currentUser.role || 'cashier'
+
+            document.getElementById('header-user-name').textContent = name
+            document.getElementById('header-user-role').textContent = role.toUpperCase()
+
+            document.getElementById('sidebar-user-name').textContent = name
+            document.getElementById('sidebar-user-role').textContent = role.toUpperCase()
+        }
+
+        // ====================== VIEW RENDERERS ======================
+        async function renderPOS() {
+            currentView = 'pos'
+            const content = document.getElementById('main-content')
+
+            content.innerHTML = `
+                <div class="flex gap-8 h-full">
+                    <!-- Products Grid -->
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-3xl font-semibold text-slate-800">Available Products</h2>
+                            <div class="relative w-80">
+                                <input id="pos-search" 
+                                       onkeyup="if(event.key==='Enter') filterPOSProducts()"
+                                       type="text" placeholder="Search products..." 
+                                       class="w-full bg-white border border-slate-200 focus:border-indigo-300 pl-10 py-4 rounded-3xl outline-none text-slate-700">
+                                <span class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400">🔎</span>
+                            </div>
+                        </div>
+                        
+                        <div id="pos-products-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    
+                    <!-- Cart -->
+                    <div class="w-96 bg-white rounded-3xl shadow-xl flex flex-col">
+                        <div class="px-6 py-6 border-b flex items-center justify-between">
+                            <div class="flex items-center gap-2 text-2xl font-semibold">
+                                <span>🛒</span>
+                                Your Cart
+                            </div>
+                            <button onclick="clearCart()" 
+                                    class="text-sm font-medium text-red-500 hover:text-red-600 flex items-center gap-1">
+                                🗑 Clear
+                            </button>
+                        </div>
+                        
+                        <div id="cart-list" class="flex-1 px-6 py-2 overflow-auto">
+                            <!-- Populated by JS -->
+                        </div>
+                        
+                        <div class="p-6 border-t">
+                            <div class="flex justify-between text-xl mb-4">
+                                <span class="font-medium text-slate-600">Total</span>
+                                <span id="cart-total" class="font-semibold text-3xl text-indigo-600">$0.00</span>
+                            </div>
+                            
+                            <button onclick="handleCheckout()" 
+                                    id="checkout-button"
+                                    class="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white text-xl font-semibold rounded-3xl flex items-center justify-center gap-3 transition">
+                                <span>💳 Checkout</span>
+                                <span id="cart-count-badge" class="bg-white/30 text-white text-sm px-3 py-1 rounded-2xl">0 items</span>
+                            </button>
+                            
+                            <p class="text-center text-xs text-slate-400 mt-4">Order will be created for current cashier</p>
+                        </div>
+                    </div>
+                </div>
+            `
+            try {
+                const products = await apiCall('/products/')
+                productsCache = {}
+                products.forEach(p => { productsCache[p.id] = p })
+
+                const grid = document.getElementById('pos-products-grid')
+                grid.innerHTML = products.map(product => `
+                    <div data-product-id="${product.id}" 
+                         class="pos-product-card group bg-white border border-slate-100 hover:border-indigo-300 rounded-3xl p-5 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md">
+                        <div class="flex justify-between">
+                            <div class="font-semibold text-xl text-slate-800">${product.name}</div>
+                            <div class="text-xs font-medium px-3 py-1 bg-emerald-100 text-emerald-700 rounded-2xl">${product.quantity} in stock</div>
+                        </div>
+                        <div class="mt-8 text-4xl font-bold text-indigo-600">$${parseFloat(product.price).toFixed(2)}</div>
+                    </div>
+                `).join('')
+
+                document.querySelectorAll('.pos-product-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        const id = parseInt(card.dataset.productId)
+                        const product = productsCache[id]
+                        if (product) addToCart(product)
+                    })
+                })
+
+                renderCart()
+            } catch (err) {
+                showToast('Could not load products', true)
+            }
+        }
+
+        function addToCart(product) {
+            const existing = currentCart.find(item => item.id === product.id)
+
+            if (existing) {
+                if (existing.qty + 1 > product.quantity) {
+                    showToast('Not enough stock!', true)
+                    return
+                }
+                existing.qty++
+            } else {
+                if (product.quantity < 1) {
+                    showToast('Product is out of stock', true)
+                    return
+                }
+                currentCart.push({
+                    id: product.id,
+                    name: product.name,
+                    price: parseFloat(product.price),
+                    qty: 1
+                })
+            }
+
+            renderCart()
+            showToast(`Added ${product.name} to cart`)
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cart-list')
+            if (!container) return
+
+            if (currentCart.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full py-12 text-slate-300">
+                        <div class="text-7xl mb-4">🛒</div>
+                        <p class="font-medium">Your cart is empty</p>
+                        <p class="text-sm mt-1">Click products on the left to add</p>
+                    </div>
+                `
+                document.getElementById('cart-total').textContent = '$0.00'
+                document.getElementById('cart-count-badge').textContent = '0 items'
+                return
+            }
+
+            let html = ''
+            let total = 0
+
+            currentCart.forEach((item, index) => {
+                const lineTotal = item.price * item.qty
+                total += lineTotal
+
+                html += `
+                <div class="flex justify-between items-center py-4 border-b last:border-none">
+                    <div class="flex-1">
+                        <div class="font-medium">${item.name}</div>
+                        <div class="text-sm text-slate-400">$${item.price.toFixed(2)} × ${item.qty}</div>
+                    </div>
+                    
+                    <div class="flex items-center gap-4">
+                        <div class="flex border border-slate-200 rounded-3xl overflow-hidden">
+                            <button onclick="changeCartQty(${index}, -1)" class="px-3 py-1 hover:bg-slate-100 text-lg leading-none">-</button>
+                            <span class="px-4 py-1 font-mono text-lg">${item.qty}</span>
+                            <button onclick="changeCartQty(${index}, 1)" class="px-3 py-1 hover:bg-slate-100 text-lg leading-none">+</button>
+                        </div>
+                        
+                        <button onclick="removeFromCart(${index})" class="text-red-400 hover:text-red-600 text-2xl">🗑</button>
+                        
+                        <div class="font-semibold text-right w-20">$${lineTotal.toFixed(2)}</div>
+                    </div>
+                </div>`
+            })
+
+            container.innerHTML = html
+            document.getElementById('cart-total').innerHTML = `<span class="font-semibold text-3xl">$${total.toFixed(2)}</span>`
+            document.getElementById('cart-count-badge').textContent = `${currentCart.length} item${currentCart.length !== 1 ? 's' : ''}`
+        }
+
+        function changeCartQty(index, delta) {
+            if (!currentCart[index]) return
+            const newQty = currentCart[index].qty + delta
+
+            if (newQty < 1) {
+                currentCart.splice(index, 1)
+            } else {
+                const product = productsCache[currentCart[index].id]
+                if (product && newQty > product.quantity) {
+                    showToast('Not enough stock', true)
+                    return
+                }
+                currentCart[index].qty = newQty
+            }
+
+            renderCart()
+        }
+
+        function removeFromCart(index) {
+            if (currentCart[index]) {
+                currentCart.splice(index, 1)
+                renderCart()
+            }
+        }
+
+        function clearCart() {
+            currentCart = []
+            renderCart()
+        }
+
+        async function handleCheckout() {
+            if (currentCart.length === 0) {
+                showToast('Cart is empty!', true)
+                return
+            }
+
+            const payload = {
+                items: currentCart.map(item => ({
+                    product_id: item.id,
+                    quantity: item.qty
+                }))
+            }
+
+            try {
+                const order = await apiCall('/orders/', 'POST', payload)
+                showToast(`Order #${order.id} created successfully! Total: $${order.total_amount.toFixed(2)}`, false)
+                currentCart = []
+                renderPOS()
+            } catch (err) {
+                showToast(err.message || 'Failed to create order', true)
+            }
+        }
+
+        async function renderProducts() {
+            currentView = 'products'
+            const content = document.getElementById('main-content')
+
+            content.innerHTML = `
+                <div>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-semibold">All Products</h2>
+                        <button onclick="openProductModal()" 
+                                class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-3xl font-medium">
+                            <span class="text-2xl leading-none">+</span>
+                            <span>New Product</span>
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white rounded-3xl shadow overflow-hidden">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b text-slate-500 text-sm">
+                                    <th class="text-left pl-8 py-5 font-medium">NAME</th>
+                                    <th class="text-right pr-8 py-5 font-medium">PRICE</th>
+                                    <th class="text-right pr-8 py-5 font-medium">STOCK</th>
+                                    <th class="w-40"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-table-body" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+            `
+            try {
+                const products = await apiCall('/products/')
+                productsCache = {}
+                products.forEach(p => productsCache[p.id] = p)
+
+                const tbody = document.getElementById('products-table-body')
+                tbody.innerHTML = products.map(p => `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="pl-8 py-5 font-medium">${p.name}</td>
+                        <td class="text-right pr-8 py-5 font-semibold">$${parseFloat(p.price).toFixed(2)}</td>
+                        <td class="text-right pr-8 py-5">
+                            <span class="inline-flex px-4 py-1 text-xs font-medium rounded-3xl ${p.quantity > 10 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+                                ${p.quantity}
+                            </span>
+                        </td>
+                        <td class="pr-8 py-5">
+                            <div class="flex gap-3 justify-end">
+                                <button onclick="editProduct(${p.id}); event.stopImmediatePropagation()" 
+                                        class="px-5 py-2 text-indigo-600 hover:bg-indigo-50 rounded-2xl text-sm font-medium">Edit</button>
+                                <button onclick="deleteProduct(${p.id}); event.stopImmediatePropagation()" 
+                                        class="px-5 py-2 text-red-500 hover:bg-red-50 rounded-2xl text-sm font-medium">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('')
+            } catch (err) {
+                showToast('Failed to load products', true)
+            }
+        }
+
+        function openProductModal(product = null) {
+            editingProductId = product ? product.id : null
+
+            document.getElementById('modal-title').textContent = product ? 'Edit Product' : 'Add New Product'
+
+            if (product) {
+                document.getElementById('product-name').value = product.name
+                document.getElementById('product-price').value = product.price
+                document.getElementById('product-quantity').value = product.quantity
+            } else {
+                document.getElementById('product-form').reset()
+            }
+
+            const modal = document.getElementById('product-modal')
+            modal.classList.remove('hidden')
+            modal.classList.add('flex')
+
+            const form = document.getElementById('product-form')
+            form.onsubmit = async (e) => {
+                e.preventDefault()
+
+                const payload = {
+                    name: document.getElementById('product-name').value.trim(),
+                    price: parseFloat(document.getElementById('product-price').value),
+                    quantity: parseInt(document.getElementById('product-quantity').value)
+                }
+
+                try {
+                    if (editingProductId) {
+                        await apiCall(`/products/${editingProductId}`, 'PUT', payload)
+                        showToast('Product updated')
+                    } else {
+                        await apiCall('/products/', 'POST', payload)
+                        showToast('Product created')
+                    }
+
+                    closeProductModal()
+                    if (currentView === 'products') renderProducts()
+                    else if (currentView === 'pos') renderPOS()
+                    else if (currentView === 'analytics') renderAnalytics()
+                } catch (err) {
+                    showToast(err.message, true)
+                }
+            }
+        }
+
+        function closeProductModal() {
+            const modal = document.getElementById('product-modal')
+            modal.classList.add('hidden')
+            modal.classList.remove('flex')
+            editingProductId = null
+            document.getElementById('product-form').reset()
+        }
+
+        async function editProduct(id) {
+            const product = productsCache[id]
+            if (product) openProductModal(product)
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm('Delete this product permanently?')) return
+
+            try {
+                await apiCall(`/products/${id}`, 'DELETE')
+                showToast('Product deleted')
+                if (currentView === 'products') renderProducts()
+                else if (currentView === 'pos') renderPOS()
+                else if (currentView === 'analytics') renderAnalytics()
+            } catch (err) {
+                showToast(err.message, true)
+            }
+        }
+
+        async function renderOrders() {
+            currentView = 'orders'
+            const content = document.getElementById('main-content')
+
+            content.innerHTML = `
+                <div>
+                    <h2 class="text-3xl font-semibold mb-6">Order History</h2>
+                    
+                    <div class="bg-white rounded-3xl shadow overflow-hidden">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-slate-500 text-sm border-b">
+                                    <th class="pl-8 py-5 text-left font-medium">ORDER ID</th>
+                                    <th class="py-5 text-left font-medium">DATE</th>
+                                    <th class="py-5 text-right font-medium">TOTAL</th>
+                                    <th class="py-5 text-center font-medium">STATUS</th>
+                                    <th class="w-12"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table-body" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+            `
+            try {
+                const orders = await apiCall('/orders/my-orders')
+                currentOrders = orders
+
+                const tbody = document.getElementById('orders-table-body')
+
+                tbody.innerHTML = orders.map(order => {
+                    const date = order.created_at
+                        ? new Date(order.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                        : '—'
+
+                    return `
+                    <tr onclick="viewOrderDetail(${order.id})" class="hover:bg-slate-50 cursor-pointer transition">
+                        <td class="pl-8 py-6 font-mono font-medium">#${order.id}</td>
+                        <td class="py-6">${date}</td>
+                        <td class="py-6 text-right font-semibold">$${parseFloat(order.total_amount).toFixed(2)}</td>
+                        <td class="py-6 text-center">
+                            <span class="inline-flex items-center px-5 py-1 text-xs font-medium rounded-3xl bg-emerald-100 text-emerald-700">${order.status}</span>
+                        </td>
+                        <td class="py-6 text-slate-300 text-2xl">→</td>
+                    </tr>`
+                }).join('')
+
+                if (orders.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-slate-400">No orders yet</td></tr>`
+                }
+            } catch (err) {
+                showToast('Failed to load orders', true)
+            }
+        }
+
+        function viewOrderDetail(orderId) {
+            const order = currentOrders.find(o => o.id === orderId)
+            if (!order) return
+
+            const modal = document.getElementById('order-modal')
+
+            document.getElementById('modal-order-id').textContent = `#${order.id}`
+            document.getElementById('modal-order-date').textContent = order.created_at
+                ? new Date(order.created_at).toLocaleString()
+                : 'Just now'
+
+            const statusEl = document.getElementById('modal-order-status')
+            statusEl.textContent = order.status
+            statusEl.className = `px-6 py-1 text-sm font-medium rounded-3xl ${order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`
+
+            document.getElementById('modal-order-total').innerHTML = `$${parseFloat(order.total_amount).toFixed(2)}`
+
+            const tbody = document.getElementById('order-items-body')
+            tbody.innerHTML = order.items.map(item => {
+                const product = productsCache[item.product_id] || { name: `Product #${item.product_id}` }
+                const lineTotal = item.quantity * item.unit_price
+
+                return `
+                <tr class="py-3">
+                    <td class="py-4">${product.name}</td>
+                    <td class="text-right py-4 font-medium">${item.quantity}</td>
+                    <td class="text-right py-4">$${parseFloat(item.unit_price).toFixed(2)}</td>
+                    <td class="text-right py-4 font-semibold">$${lineTotal.toFixed(2)}</td>
+                </tr>`
+            }).join('')
+
+            modal.classList.remove('hidden')
+            modal.classList.add('flex')
+        }
+
+        function closeOrderModal() {
+            const modal = document.getElementById('order-modal')
+            modal.classList.add('hidden')
+            modal.classList.remove('flex')
+        }
+
+        // ====================== NEW: ANALYTICS DASHBOARD ======================
+        async function renderAnalytics() {
+            currentView = 'analytics'
+            const content = document.getElementById('main-content')
+
+            content.innerHTML = `
+                <div class="space-y-8">
+                    <!-- KPI Cards -->
+                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-6" id="kpi-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Stock Value Chart -->
+                        <div class="lg:col-span-8 bg-white rounded-3xl p-8 shadow">
+                            <div class="flex justify-between items-baseline mb-6">
+                                <h3 class="text-2xl font-semibold text-slate-800">Stock Value by Product</h3>
+                                <p class="text-sm text-slate-400">Top 8 products • Total inventory value shown</p>
+                            </div>
+                            <canvas id="stockValueChart" class="h-96 w-full"></canvas>
+                        </div>
+                        
+                        <!-- Low Stock Alerts -->
+                        <div class="lg:col-span-4 bg-white rounded-3xl p-8 shadow flex flex-col">
+                            <h3 class="text-2xl font-semibold text-slate-800 mb-6 flex items-center gap-2">
+                                <span>⚠️</span>
+                                Low Stock Alerts
+                            </h3>
+                            <div id="low-stock-list" class="flex-1 overflow-auto space-y-3">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `
+            try {
+                // Fetch latest data
+                const [products, orders] = await Promise.all([
+                    apiCall('/products/'),
+                    apiCall('/orders/my-orders')
+                ])
+
+                // Update cache
+                productsCache = {}
+                products.forEach(p => { productsCache[p.id] = p })
+
+                // === KPI Calculations ===
+                const totalProducts = products.length
+                const totalValue = products.reduce((sum, p) => sum + (parseFloat(p.price) * p.quantity), 0)
+                const lowStockCount = products.filter(p => p.quantity <= LOW_STOCK_THRESHOLD).length
+                const outOfStockCount = products.filter(p => p.quantity === 0).length
+                const totalOrdersCount = orders.length
+                const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.total_amount), 0)
+
+                // Render KPI cards
+                const kpiHTML = `
+                    <div class="kpi-card bg-white rounded-3xl p-6 shadow">
+                        <div class="flex justify-between">
+                            <div>
+                                <p class="text-slate-500 text-sm">Total Products</p>
+                                <p class="text-4xl font-semibold text-slate-800 mt-1">${totalProducts}</p>
+                            </div>
+                            <div class="text-5xl">📦</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card bg-white rounded-3xl p-6 shadow">
+                        <div class="flex justify-between">
+                            <div>
+                                <p class="text-slate-500 text-sm">Inventory Value</p>
+                                <p class="text-4xl font-semibold text-emerald-600 mt-1">$${totalValue.toFixed(2)}</p>
+                            </div>
+                            <div class="text-5xl">💰</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card bg-white rounded-3xl p-6 shadow">
+                        <div class="flex justify-between">
+                            <div>
+                                <p class="text-slate-500 text-sm">Low Stock Items</p>
+                                <p class="text-4xl font-semibold text-amber-600 mt-1">${lowStockCount}</p>
+                            </div>
+                            <div class="text-5xl">⚠️</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card bg-white rounded-3xl p-6 shadow">
+                        <div class="flex justify-between">
+                            <div>
+                                <p class="text-slate-500 text-sm">Out of Stock</p>
+                                <p class="text-4xl font-semibold text-red-600 mt-1">${outOfStockCount}</p>
+                            </div>
+                            <div class="text-5xl">🚫</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card bg-white rounded-3xl p-6 shadow">
+                        <div class="flex justify-between">
+                            <div>
+                                <p class="text-slate-500 text-sm">Total Revenue</p>
+                                <p class="text-4xl font-semibold text-indigo-600 mt-1">$${totalRevenue.toFixed(2)}</p>
+                            </div>
+                            <div class="text-5xl">📈</div>
+                        </div>
+                    </div>
+                `
+                document.getElementById('kpi-grid').innerHTML = kpiHTML
+
+                // === Low Stock List ===
+                const lowStockProducts = products
+                    .filter(p => p.quantity <= LOW_STOCK_THRESHOLD)
+                    .sort((a, b) => a.quantity - b.quantity)
+
+                const lowStockContainer = document.getElementById('low-stock-list')
+
+                if (lowStockProducts.length === 0) {
+                    lowStockContainer.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full text-emerald-600 py-10">
+                            <div class="text-6xl mb-3">🎉</div>
+                            <p class="font-medium">All stock levels are healthy!</p>
+                        </div>
+                    `
+                } else {
+                    lowStockContainer.innerHTML = lowStockProducts.map(p => `
+                        <div onclick="editProduct(${p.id});" class="flex justify-between items-center bg-slate-50 hover:bg-slate-100 rounded-2xl p-4 cursor-pointer transition">
+                            <div class="flex-1">
+                                <div class="font-medium">${p.name}</div>
+                                <div class="text-xs text-slate-400">${p.quantity} left • $${parseFloat(p.price).toFixed(2)} each</div>
+                            </div>
+                            <div class="text-right">
+                                <span class="inline-block px-4 py-1 text-xs font-medium rounded-3xl bg-amber-100 text-amber-700">${p.quantity}</span>
+                            </div>
+                        </div>
+                    `).join('')
+                }
+
+                // === Stock Value Bar Chart ===
+                if (analyticsChart) analyticsChart.destroy()
+
+                const sortedByValue = [...products]
+                    .map(p => ({
+                        name: p.name.length > 18 ? p.name.substring(0, 15) + '...' : p.name,
+                        value: parseFloat(p.price) * p.quantity
+                    }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 8)
+
+                const ctx = document.getElementById('stockValueChart')
+                analyticsChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedByValue.map(item => item.name),
+                        datasets: [{
+                            label: 'Stock Value ($)',
+                            data: sortedByValue.map(item => item.value),
+                            backgroundColor: '#4f46e5',
+                            borderColor: '#4338ca',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            barThickness: 32
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => '$' + ctx.raw.toFixed(2)
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: '#f1f5f9' },
+                                ticks: { color: '#64748b', font: { size: 13 } }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#64748b', font: { size: 13 }, maxRotation: 45 }
+                            }
+                        }
+                    }
+                })
+
+            } catch (err) {
+                showToast('Failed to load analytics data', true)
+                console.error(err)
+            }
+        }
+
+        // ====================== NAVIGATION ======================
+        function navigateTo(view) {
+            currentView = view
+
+            // Update active sidebar
+            document.querySelectorAll('.sidebar-link').forEach(link => {
+                link.classList.remove('active')
+                if (link.id === `nav-${view}`) link.classList.add('active')
+            })
+
+            const titles = {
+                pos: 'Point of Sale',
+                products: 'Products',
+                orders: 'Order History',
+                analytics: 'Inventory Analytics'
+            }
+            document.getElementById('view-title').textContent = titles[view] || 'Dashboard'
+
+            if (view === 'pos') renderPOS()
+            else if (view === 'products') renderProducts()
+            else if (view === 'orders') renderOrders()
+            else if (view === 'analytics') renderAnalytics()
+        }
+
+        function refreshCurrentView() {
+            if (currentView === 'pos') renderPOS()
+            else if (currentView === 'products') renderProducts()
+            else if (currentView === 'orders') renderOrders()
+            else if (currentView === 'analytics') renderAnalytics()
+        }
+
+        // ====================== FILTER (POS) ======================
+        function filterPOSProducts() {
+            const searchTerm = (document.getElementById('pos-search')?.value || '').toLowerCase().trim()
+            if (!searchTerm) {
+                renderPOS()
+                return
+            }
+
+            const grid = document.getElementById('pos-products-grid')
+            if (!grid) return
+
+            const cards = grid.querySelectorAll('.pos-product-card')
+            cards.forEach(card => {
+                const name = card.querySelector('.font-semibold').textContent.toLowerCase()
+                card.style.display = name.includes(searchTerm) ? '' : 'none'
+            })
+        }
+
+        // ====================== APP INITIALIZATION ======================
+        async function initializeApp() {
+            return {
+                config(userConfig = {}) {
+                    return {
+                        configUser: userConfig,
+                        theme: { extend: { colors: { primary: '#4f46e5' } } }
+                    }
+                },
+                theme: { extend: {} }
+            }
+        }
+
+        async function start() {
+            await initializeApp()
+
+            const savedToken = localStorage.getItem('access_token')
+            if (savedToken) {
+                token = savedToken
+                try {
+                    currentUser = await apiCall('/users/me')
+                    document.getElementById('login-screen').classList.add('hidden')
+                    document.getElementById('dashboard-screen').classList.remove('hidden')
+                    updateUserUI()
+                    navigateTo('pos')
+                } catch (e) {
+                    logout()
+                }
+            }
+
+            document.getElementById('login-form').addEventListener('submit', handleLogin)
+
+            console.log('%c✅ POSify frontend ready with Inventory Analytics! (Backend: http://localhost:8000)', 'color:#4f46e5; font-weight:600')
+        }
+
+        window.onload = start
+    </script>
+</body>
+
+</html>
