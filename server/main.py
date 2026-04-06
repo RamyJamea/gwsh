@@ -36,8 +36,8 @@ app.add_middleware(
 # frontend_path = os.path.join(current_dir, "..", "frontend")
 # app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
-app.include_router(user_router)
-app.include_router(auth_router)
+app.include_router(user_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
 
 
 # @app.get("/app", tags=["Frontend"])
