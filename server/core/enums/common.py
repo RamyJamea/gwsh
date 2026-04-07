@@ -8,8 +8,10 @@ class RoleEnum(str, Enum):
 
 class ActionEnum(str, Enum):
     CREATE = "create"
-    DELETE = "delete"
     UPDATE = "update"
+    PAY = "pay"
+    CANCEL = "cancel"
+    DELETE = "delete"
 
 
 class PaymentEnum(str, Enum):
