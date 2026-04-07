@@ -10,7 +10,7 @@ from ..core.schemas import (
     MenuItemDetailResponse,
 )
 
-router = APIRouter(prefix="/api/v1/menu-items", tags=["menu-items"])
+router = APIRouter(prefix="/menu-items", tags=["menu-items"])
 
 
 @router.post("/", response_model=MenuItemResponse, status_code=status.HTTP_201_CREATED)
