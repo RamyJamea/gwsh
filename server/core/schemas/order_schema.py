@@ -53,8 +53,15 @@ class OrderCreate(OrderBase):
 
 
 class OrderUpdate(BaseModel):
-    action: ActionEnum | None = None
     payment_method: PaymentEnum | None = None
+
+
+class OrderCheckout(BaseModel):
+    payment_method: PaymentEnum = PaymentEnum.CASH
+
+
+class OrderCancel(BaseModel):
+    reason: str | None = None
 
 
 class OrderResponse(OrderBase, AuditSchema):
@@ -65,3 +72,15 @@ class OrderResponse(OrderBase, AuditSchema):
 
 class OrderDetailResponse(OrderResponse):
     order_items: list[OrderItemDetailResponse] = []
+
+
+class OrderItemsAdd(BaseModel):
+    items: list[OrderItemCreate]
+
+
+class OrderItemQuantityUpdate(BaseModel):
+    quantity: int
+
+
+class OrderTableUpdate(BaseModel):
+    table_id: int | None = None
