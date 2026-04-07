@@ -32,6 +32,7 @@ class MenuItemCreate(MenuItemBase):
 class MenuItemUpdate(BaseModel):
     price: Decimal | None = None
     is_active: bool | None = None
+    extras: list[MenuItemExtraCreate] | None = None
 
 
 class MenuItemResponse(MenuItemBase, AuditSchema):

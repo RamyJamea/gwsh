@@ -61,6 +61,37 @@ class MenuService(BaseService[MenuItem, MenuItemCreate, MenuItemUpdate]):
 
     def update(self, menu_item_id: int, data: MenuItemUpdate) -> MenuItem:
         obj = self.get(menu_item_id)
-        self.repo.update(obj, data.model_dump(exclude_unset=True))
+        update_data = data.model_dump(exclude_unset=True)
+
+        if "extras" in update_data:
+            extras_list = update_data.pop("extras")
+            if extras_list is None:
+                extras_list = []
+
+            existing_extras = self.menu_extra_repo.get_extras_for_menu_item(
+                menu_item_id
+            )
+            for ex in existing_extras:
+                self.menu_extra_repo.delete(ex)
+
+            if extras_list:
+                extra_ids = {extra["extra_id"] for extra in extras_list}
+                valid_extras = self.extra_repo.get_by_ids(list(extra_ids))
+                if len(valid_extras) != len(extra_ids):
+                    raise ValueError("One or more extras provided do not exist")
+
+                extras_data = [
+                    {
+                        "menu_item_id": menu_item_id,
+                        "extra_id": extra["extra_id"],
+                        "price": extra["price"],
+                    }
+                    for extra in extras_list
+                ]
+                self.menu_extra_repo.create_bulk(extras_data)
+
+        if update_data:
+            self.repo.update(obj, update_data)
+
         self.session.commit()
         return obj
