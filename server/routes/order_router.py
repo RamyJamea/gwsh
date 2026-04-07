@@ -44,7 +44,7 @@ def get_order(
 def list_orders(
     branch_id: Annotated[int, Query(..., description="Filter by branch ID")],
     skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    limit: int = Query(500, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
     order_service: OrderService = Depends(get_order_service),
 ):
