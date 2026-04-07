@@ -1,5 +1,4 @@
-# NEW FILE: routers/extras.py
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from ..core.schemas import ExtraCreate, ExtraResponse
 from ..core.dependencies import get_extra_service, get_current_user, get_current_admin
 from ..models import User
@@ -14,7 +13,10 @@ def create_extra(
     current_admin: User = Depends(get_current_admin),
     service: ExtraService = Depends(get_extra_service),
 ):
-    return service.create(data)
+    try:
+        return service.create(data)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/", response_model=list[ExtraResponse])
@@ -24,7 +26,10 @@ def list_extras(
     current_user: User = Depends(get_current_user),
     service: ExtraService = Depends(get_extra_service),
 ):
-    return service.list(skip=skip, limit=limit)
+    try:
+        return service.list(skip=skip, limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/{extra_id}", response_model=ExtraResponse)
@@ -33,7 +38,10 @@ def get_extra(
     current_user: User = Depends(get_current_user),
     service: ExtraService = Depends(get_extra_service),
 ):
-    return service.get(extra_id)
+    try:
+        return service.get(extra_id)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.put("/{extra_id}", response_model=ExtraResponse)
@@ -43,7 +51,10 @@ def update_extra(
     current_admin: User = Depends(get_current_admin),
     service: ExtraService = Depends(get_extra_service),
 ):
-    return service.update(extra_id, data)
+    try:
+        return service.update(extra_id, data)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.delete("/{extra_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -52,4 +63,8 @@ def delete_extra(
     current_admin: User = Depends(get_current_admin),
     service: ExtraService = Depends(get_extra_service),
 ):
-    service.delete(extra_id)
+    try:
+        service.delete(extra_id)
+        return None
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

@@ -19,8 +19,12 @@ def create_order(
 ):
     if order_in.cashier_id != current_user.id:
         order_in = order_in.model_copy(update={"cashier_id": current_user.id})
-
-    return order_service.create(order_in)
+    try:
+        return order_service.create(order_in)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
 
 
 @router.get("/{order_id}", response_model=OrderDetailResponse)
@@ -29,7 +33,11 @@ def get_order(
     current_user: User = Depends(get_current_user),
     order_service: OrderService = Depends(get_order_service),
 ):
-    return order_service.get_detail(order_id)
+    try:
+        return order_service.get_detail(order_id)
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 @router.get("/", response_model=list[OrderResponse])
@@ -45,8 +53,12 @@ def list_orders(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only view orders from your own branch",
         )
-
-    return order_service.list_by_branch(branch_id, skip=skip, limit=limit)
+    try:
+        return order_service.list_by_branch(branch_id, skip=skip, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
 
 
 @router.patch("/{order_id}", response_model=OrderDetailResponse)
@@ -56,7 +68,11 @@ def update_order(
     current_user: User = Depends(get_current_cashier),
     order_service: OrderService = Depends(get_order_service),
 ):
-    return order_service.update(order_id, order_update, cashier_id=current_user.id)
+    try:
+        return order_service.update(order_id, order_update, cashier_id=current_user.id)
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 @router.post(
@@ -70,11 +86,15 @@ def checkout_order(
     current_user: User = Depends(get_current_cashier),
     order_service: OrderService = Depends(get_order_service),
 ):
-    return order_service.checkout(
-        order_id=order_id,
-        cashier_id=current_user.id,
-        payment_method=checkout_in.payment_method,
-    )
+    try:
+        return order_service.checkout(
+            order_id=order_id,
+            cashier_id=current_user.id,
+            payment_method=checkout_in.payment_method,
+        )
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 @router.post(
@@ -88,11 +108,15 @@ def cancel_order(
     current_user: User = Depends(get_current_cashier),
     order_service: OrderService = Depends(get_order_service),
 ):
-    return order_service.cancel(
-        order_id=order_id,
-        cashier_id=current_user.id,
-        reason=cancel_in.reason if cancel_in else None,
-    )
+    try:
+        return order_service.cancel(
+            order_id=order_id,
+            cashier_id=current_user.id,
+            reason=cancel_in.reason if cancel_in else None,
+        )
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 @router.post(
@@ -106,11 +130,15 @@ def add_order_items(
     current_user: User = Depends(get_current_cashier),
     order_service: OrderService = Depends(get_order_service),
 ):
-    return order_service.add_items(
-        order_id=order_id,
-        items_in=items_in.items,
-        cashier_id=current_user.id,
-    )
+    try:
+        return order_service.add_items(
+            order_id=order_id,
+            items_in=items_in.items,
+            cashier_id=current_user.id,
+        )
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 @router.patch(
@@ -125,12 +153,16 @@ def update_order_item_quantity(
     current_user: User = Depends(get_current_cashier),
     order_service: OrderService = Depends(get_order_service),
 ):
-    return order_service.update_item_quantity(
-        order_id=order_id,
-        order_item_id=order_item_id,
-        quantity=quantity_in.quantity,
-        cashier_id=current_user.id,
-    )
+    try:
+        return order_service.update_item_quantity(
+            order_id=order_id,
+            order_item_id=order_item_id,
+            quantity=quantity_in.quantity,
+            cashier_id=current_user.id,
+        )
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 @router.delete(
@@ -144,11 +176,15 @@ def remove_order_item(
     current_user: User = Depends(get_current_cashier),
     order_service: OrderService = Depends(get_order_service),
 ):
-    return order_service.remove_item(
-        order_id=order_id,
-        order_item_id=order_item_id,
-        cashier_id=current_user.id,
-    )
+    try:
+        return order_service.remove_item(
+            order_id=order_id,
+            order_item_id=order_item_id,
+            cashier_id=current_user.id,
+        )
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 @router.patch(
@@ -162,8 +198,12 @@ def update_order_table(
     current_user: User = Depends(get_current_cashier),
     order_service: OrderService = Depends(get_order_service),
 ):
-    return order_service.update_table(
-        order_id=order_id,
-        table_id=table_in.table_id,
-        cashier_id=current_user.id,
-    )
+    try:
+        return order_service.update_table(
+            order_id=order_id,
+            table_id=table_in.table_id,
+            cashier_id=current_user.id,
+        )
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc

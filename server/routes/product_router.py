@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from ..core.schemas import ProductCreate, ProductUpdate, ProductResponse
 from ..core.dependencies import get_product_service, get_current_user, get_current_admin
 from ..models import User
@@ -13,7 +13,10 @@ def create_product(
     current_admin: User = Depends(get_current_admin),
     service: ProductService = Depends(get_product_service),
 ):
-    return service.create(data)
+    try:
+        return service.create(data)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/", response_model=list[ProductResponse])
@@ -23,7 +26,10 @@ def list_products(
     current_user: User = Depends(get_current_user),
     service: ProductService = Depends(get_product_service),
 ):
-    return service.list(skip=skip, limit=limit)
+    try:
+        return service.list(skip=skip, limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -32,7 +38,17 @@ def get_product(
     current_user: User = Depends(get_current_user),
     service: ProductService = Depends(get_product_service),
 ):
-    return service.get(product_id)
+    try:
+        product = service.get(product_id)
+        if product is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
+            )
+        return product
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.put("/{product_id}", response_model=ProductResponse)
@@ -42,7 +58,16 @@ def update_product(
     current_admin: User = Depends(get_current_admin),
     service: ProductService = Depends(get_product_service),
 ):
-    return service.update(product_id, data)
+    try:
+        if service.get(product_id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
+            )
+        return service.update(product_id, data)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -51,4 +76,13 @@ def delete_product(
     current_admin: User = Depends(get_current_admin),
     service: ProductService = Depends(get_product_service),
 ):
-    service.delete(product_id)
+    try:
+        if service.get(product_id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
+            )
+        service.delete(product_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from ..models import User
 from ..services import OrderService
 from ..core.schemas import OrderHistoryResponse
@@ -13,7 +13,11 @@ def get_order_history(
     current_user: User = Depends(get_current_user),
     order_service: OrderService = Depends(get_order_service),
 ):
-    return order_service.get_order_history(order_id)
+    try:
+        return order_service.get_order_history(order_id)
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 @router.get("/{history_id}", response_model=OrderHistoryResponse)
@@ -22,4 +26,8 @@ def get_history_detail(
     current_user: User = Depends(get_current_user),
     order_service: OrderService = Depends(get_order_service),
 ):
-    return order_service.get_history_detail(history_id)
+    try:
+        return order_service.get_history_detail(history_id)
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc

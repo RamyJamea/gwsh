@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from ..core.schemas import CategoryCreate, CategoryUpdate, CategoryResponse
 from ..core.schemas import ProductResponse
 from ..core.dependencies import get_category_service, get_product_service
@@ -15,7 +15,10 @@ def create_category(
     current_admin: User = Depends(get_current_admin),
     service: CategoryService = Depends(get_category_service),
 ):
-    return service.create(data)
+    try:
+        return service.create(data)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/", response_model=list[CategoryResponse])
@@ -25,7 +28,10 @@ def list_categories(
     current_user: User = Depends(get_current_user),
     service: CategoryService = Depends(get_category_service),
 ):
-    return service.list(skip=skip, limit=limit)
+    try:
+        return service.list(skip=skip, limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/{category_id}", response_model=CategoryResponse)
@@ -34,7 +40,10 @@ def get_category(
     current_user: User = Depends(get_current_user),
     service: CategoryService = Depends(get_category_service),
 ):
-    return service.get(category_id)
+    try:
+        return service.get(category_id)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.put("/{category_id}", response_model=CategoryResponse)
@@ -44,7 +53,10 @@ def update_category(
     current_admin: User = Depends(get_current_admin),
     service: CategoryService = Depends(get_category_service),
 ):
-    return service.update(category_id, data)
+    try:
+        return service.update(category_id, data)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -53,7 +65,11 @@ def delete_category(
     current_admin: User = Depends(get_current_admin),
     service: CategoryService = Depends(get_category_service),
 ):
-    service.delete(category_id)
+    try:
+        service.delete(category_id)
+        return None
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/{category_id}/products", response_model=list[ProductResponse])
@@ -64,4 +80,7 @@ def get_products_by_category(
     current_user: User = Depends(get_current_user),
     product_service: ProductService = Depends(get_product_service),
 ):
-    return product_service.list_by_category(category_id, skip, limit)
+    try:
+        return product_service.list_by_category(category_id, skip, limit)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

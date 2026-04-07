@@ -13,7 +13,10 @@ def admin_create_user(
     current_admin: User = Depends(get_current_admin),
     user_service: UserService = Depends(get_user_service),
 ):
-    return user_service.create(user_in)
+    try:
+        return user_service.create(user_in)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/", response_model=list[UserResponse])
@@ -22,9 +25,12 @@ def get_users(
     current_admin: User = Depends(get_current_admin),
     user_service: UserService = Depends(get_user_service),
 ):
-    if branch_id is not None:
-        return user_service.repo.get_active_users_by_branch(branch_id)
-    return user_service.list()
+    try:
+        if branch_id is not None:
+            return user_service.repo.get_active_users_by_branch(branch_id)
+        return user_service.list()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -33,13 +39,17 @@ def get_user(
     current_admin: User = Depends(get_current_admin),
     user_service: UserService = Depends(get_user_service),
 ):
-    user = user_service.get(user_id)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-    return user
+    try:
+        user = user_service.get(user_id)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.patch("/{user_id}", response_model=UserResponse)
@@ -49,11 +59,13 @@ def update_user(
     current_admin: User = Depends(get_current_admin),
     user_service: UserService = Depends(get_user_service),
 ):
-    if user_service.get(user_id) is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-
-    updated_user = user_service.update(user_id, user_in)
-    return updated_user
+    try:
+        if user_service.get(user_id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
+        return user_service.update(user_id, user_in)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

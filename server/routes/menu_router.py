@@ -32,7 +32,10 @@ def read_menu_items(
     service: MenuService = Depends(get_menu_service),
     current_user: User = Depends(get_current_user),
 ):
-    return service.list(skip=skip, limit=limit)
+    try:
+        return service.list(skip=skip, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/branch/{branch_id}", response_model=List[MenuItemResponse])
@@ -43,11 +46,14 @@ def read_menu_items_by_branch(
     service: MenuService = Depends(get_menu_service),
     current_user: User = Depends(get_current_user),
 ):
-    return service.repo.get_by_branch(
-        branch_id=branch_id,
-        skip=skip,
-        limit=limit,
-    )
+    try:
+        return service.repo.get_by_branch(
+            branch_id=branch_id,
+            skip=skip,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/{menu_item_id}", response_model=MenuItemDetailResponse)
@@ -56,13 +62,16 @@ def read_menu_item(
     service: MenuService = Depends(get_menu_service),
     current_user: User = Depends(get_current_user),
 ):
-    menu_item = service.repo.get_menu_item_with_extras(menu_item_id)
-    if menu_item is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Menu item {menu_item_id} not found",
-        )
-    return menu_item
+    try:
+        menu_item = service.repo.get_menu_item_with_extras(menu_item_id)
+        if menu_item is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Menu item {menu_item_id} not found",
+            )
+        return menu_item
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.put("/{menu_item_id}", response_model=MenuItemResponse)
@@ -88,4 +97,5 @@ def delete_menu_item(
     try:
         service.delete(menu_item_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
