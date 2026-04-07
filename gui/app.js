@@ -324,7 +324,7 @@ async function renderDashboard(el) {
       ]);
       const active = orders.filter(o => o.action === 'CREATE' || o.action === 'UPDATE');
       const avail = tables.filter(t => t.is_available);
-      const revenue = orders.filter(o => o.action === 'CHECKOUT').reduce((s, o) => s + parseFloat(o.total_amount || 0), 0);
+      const revenue = orders.filter(o => o.action === 'PAY').reduce((s, o) => s + parseFloat(o.total_amount || 0), 0);
       $('#dash-active').textContent = active.length;
       $('#dash-tables').textContent = `${avail.length} / ${tables.length}`;
       $('#dash-revenue').textContent = formatMoney(revenue);
@@ -346,7 +346,7 @@ async function renderDashboard(el) {
 }
 
 function actionBadge(action) {
-  const map = { CREATE: 'info', UPDATE: 'warning', CHECKOUT: 'success', CANCEL: 'danger' };
+  const map = { CREATE: 'info', UPDATE: 'warning', PAY: 'success', CANCEL: 'danger' };
   return map[action] || 'gray';
 }
 
@@ -419,6 +419,7 @@ async function renderPOS(el) {
 
   // Checkout
   $('#cart-checkout-btn').addEventListener('click', handleCheckout);
+  $('#cart-hold-btn').addEventListener('click', handleHold);
   $('#cart-clear-btn').addEventListener('click', () => {
     state.cart = [];
     state.cartTable = null;
@@ -439,13 +440,13 @@ async function enrichMenuItems() {
       const prods = await api.get('/products/');
       prods.forEach(p => _productCache[p.id] = p.name);
     }
-  } catch {}
+  } catch { }
   try {
     if (!Object.keys(_sizeCache).length) {
       const sizes = await api.get('/sizes/');
       sizes.forEach(s => _sizeCache[s.id] = s.name);
     }
-  } catch {}
+  } catch { }
   state.menuItems.forEach(mi => {
     mi._productName = _productCache[mi.product_id] || `Product ${mi.product_id}`;
     mi._sizeName = _sizeCache[mi.size_id] || `Size ${mi.size_id}`;
@@ -467,9 +468,9 @@ function renderPOSCategories(activeCatId) {
       if (catId) {
         const prodIds = Object.entries(_productCache).length
           ? state.menuItems.filter(mi => {
-              // We need category_id on product. Let's filter via product API data.
-              return true; // We'll do a simpler filter
-            })
+            // We need category_id on product. Let's filter via product API data.
+            return true; // We'll do a simpler filter
+          })
           : state.menuItems;
         // Simple: filter by checking the product -> category mapping
         filterByCategory(catId);
@@ -677,6 +678,49 @@ async function handleCheckout() {
       toast(err.message, 'error');
     }
   });
+}
+
+
+async function handleHold() {
+  if (!state.cart.length) return;
+
+  const bid = state.selectedBranch;
+  if (!bid) {
+    toast('Select a branch first', 'warning');
+    return;
+  }
+
+  try {
+    const orderData = {
+      cashier_id: state.user.id,
+      branch_id: bid,
+      table_id: state.cartTable,
+      total_amount: state.cart.reduce((s, i) => s + i.price * i.quantity, 0),
+      items: state.cart.map(c => ({
+        menu_item_id: c.menuItemId,
+        quantity: c.quantity,
+        price_at_time: c.price,
+        extras: c.extras.map(e => ({
+          menu_item_extra_id: e.id,
+          quantity: 1,
+          price_at_time: e.price,
+        })),
+      })),
+    };
+
+    const order = await api.post('/orders/', orderData);
+
+    // Clear cart
+    state.cart = [];
+    state.cartTable = null;
+
+    toast(`Order #${order.id} held successfully!`, 'success');
+
+    // Refresh POS UI
+    renderPOS($('#content'));
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 // ── Active Orders ───────────────────────────────────────────
@@ -914,7 +958,7 @@ async function renderHistory(el) {
   if (!bid) { html($('#history-list'), '<div class="empty-state"><p>Select a branch</p></div>'); return; }
   try {
     const orders = await api.get(`/orders/?branch_id=${bid}`);
-    const completed = orders.filter(o => o.action === 'CHECKOUT' || o.action === 'CANCEL');
+    const completed = orders.filter(o => o.action === 'PAY' || o.action === 'CANCEL');
     if (!completed.length) {
       html($('#history-list'), '<div class="empty-state"><div class="empty-icon">📜</div><p>No completed orders</p></div>');
       return;
