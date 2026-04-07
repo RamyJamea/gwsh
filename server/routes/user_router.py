@@ -24,7 +24,7 @@ def get_users(
 ):
     if branch_id is not None:
         return user_service.repo.get_active_users_by_branch(branch_id)
-    return user_service.get_all()
+    return user_service.list()
 
 
 @router.get("/{user_id}", response_model=UserResponse)
