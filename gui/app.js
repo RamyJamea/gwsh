@@ -1,0 +1,1587 @@
+/* ============================================================
+   RestaurantOS — Full Application Logic
+   ============================================================ */
+
+// ── Config ──────────────────────────────────────────────────
+const API = 'http://localhost:8000/api/v1';
+
+// ── State ───────────────────────────────────────────────────
+const state = {
+  token: localStorage.getItem('pos_token') || null,
+  user: JSON.parse(localStorage.getItem('pos_user') || 'null'),
+  role: localStorage.getItem('pos_role') || null,
+  branches: [],
+  selectedBranch: null,
+  currentRoute: 'dashboard',
+  cart: [],
+  cartTable: null,
+  categories: [],
+  products: [],
+  sizes: [],
+  extras: [],
+  menuItems: [],
+  tables: [],
+  orders: [],
+  users: [],
+};
+
+// ── API Service ─────────────────────────────────────────────
+const api = {
+  async req(method, path, body = null) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
+    const opts = { method, headers };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`${API}${path}`, opts);
+    if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
+    if (res.status === 204) return null;
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || res.statusText);
+    }
+    return res.json();
+  },
+  get: (p) => api.req('GET', p),
+  post: (p, b) => api.req('POST', p, b),
+  put: (p, b) => api.req('PUT', p, b),
+  patch: (p, b) => api.req('PATCH', p, b),
+  del: (p) => api.req('DELETE', p),
+
+  async login(username, password) {
+    const form = new URLSearchParams();
+    form.append('username', username);
+    form.append('password', password);
+    const res = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Login failed');
+    }
+    return res.json();
+  },
+};
+
+// ── Utility ─────────────────────────────────────────────────
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+const html = (el, h) => { el.innerHTML = h; };
+const show = (el) => el.classList.remove('hidden');
+const hide = (el) => el.classList.add('hidden');
+
+function toast(msg, type = 'success') {
+  const c = $('#toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function formatMoney(n) {
+  return parseFloat(n || 0).toFixed(2);
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString();
+}
+
+function isAdmin() { return state.role === 'ADMIN' || state.role === 'admin'; }
+function isCashier() { return state.role === 'CASHIER' || state.role === 'cashier'; }
+
+// ── Auth ────────────────────────────────────────────────────
+async function handleLogin(e) {
+  e.preventDefault();
+  const errEl = $('#login-error');
+  hide(errEl);
+  const username = $('#login-username').value.trim();
+  const password = $('#login-password').value;
+  if (!username || !password) {
+    show(errEl);
+    errEl.textContent = 'Please enter username and password.';
+    return;
+  }
+  try {
+    const data = await api.login(username, password);
+    state.token = data.access_token;
+    localStorage.setItem('pos_token', data.access_token);
+    // Fetch profile
+    const profile = await api.get('/auth/profile');
+    state.user = profile;
+    state.role = profile.role;
+    localStorage.setItem('pos_user', JSON.stringify(profile));
+    localStorage.setItem('pos_role', profile.role);
+    enterApp();
+  } catch (err) {
+    show(errEl);
+    errEl.textContent = err.message;
+  }
+}
+
+function logout() {
+  state.token = null;
+  state.user = null;
+  state.role = null;
+  state.cart = [];
+  state.cartTable = null;
+  localStorage.removeItem('pos_token');
+  localStorage.removeItem('pos_user');
+  localStorage.removeItem('pos_role');
+  hide($('#app-shell'));
+  show($('#login-screen'));
+  $('#login-screen').classList.add('active');
+  $('#login-username').value = '';
+  $('#login-password').value = '';
+  $('#login-username').focus();
+}
+
+$('#password-toggle').addEventListener('click', () => {
+  const inp = $('#login-password');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+});
+
+$('#login-form').addEventListener('submit', handleLogin);
+$('#logout-btn').addEventListener('click', logout);
+
+// ── Navigation ──────────────────────────────────────────────
+const NAV_CASHIER = [
+  { section: 'Workspace' },
+  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+  { id: 'pos', label: 'New Order', icon: '🛒' },
+  { id: 'orders', label: 'Active Orders', icon: '📋' },
+  { id: 'tables', label: 'Tables', icon: '🪑' },
+  { id: 'history', label: 'Order History', icon: '📜' },
+  { section: 'Account' },
+  { id: 'profile', label: 'Profile', icon: '👤' },
+];
+
+const NAV_ADMIN = [
+  { section: 'Overview' },
+  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+  { section: 'POS' },
+  { id: 'pos', label: 'New Order', icon: '🛒' },
+  { id: 'orders', label: 'Active Orders', icon: '📋' },
+  { id: 'tables', label: 'Tables', icon: '🪑' },
+  { id: 'history', label: 'Order History', icon: '📜' },
+  { section: 'Management' },
+  { id: 'branches', label: 'Branches', icon: '🏢' },
+  { id: 'users', label: 'Users', icon: '👥' },
+  { id: 'categories', label: 'Categories', icon: '📁' },
+  { id: 'products', label: 'Products', icon: '📦' },
+  { id: 'sizes', label: 'Sizes', icon: '📏' },
+  { id: 'extras', label: 'Extras', icon: '✨' },
+  { id: 'menu-items', label: 'Menu Items', icon: '🍽' },
+  { section: 'Account' },
+  { id: 'profile', label: 'Profile', icon: '👤' },
+];
+
+function buildSidebar() {
+  const nav = $('#sidebar-nav');
+  const items = isAdmin() ? NAV_ADMIN : NAV_CASHIER;
+  let h = '';
+  for (const item of items) {
+    if (item.section) {
+      h += `<div class="nav-section">${item.section}</div>`;
+    } else {
+      h += `<div class="nav-item ${state.currentRoute === item.id ? 'active' : ''}" data-route="${item.id}">
+        <span class="nav-icon">${item.icon}</span>${item.label}
+      </div>`;
+    }
+  }
+  html(nav, h);
+  nav.querySelectorAll('.nav-item').forEach(el => {
+    el.addEventListener('click', () => navigate(el.dataset.route));
+  });
+}
+
+function navigate(route) {
+  state.currentRoute = route;
+  buildSidebar();
+  renderPage();
+}
+
+// ── Enter App ───────────────────────────────────────────────
+async function enterApp() {
+  $('#login-screen').classList.remove('active');
+  hide($('#login-screen'));
+  show($('#app-shell'));
+
+  // Topbar user
+  const u = state.user;
+  html($('#topbar-user'), `<div class="user-avatar">${(u.username || '?')[0].toUpperCase()}</div>${u.username}`);
+  html($('#sidebar-user'), `<div>${u.username}</div><div class="user-role">${u.role}</div>`);
+
+  // Load branches
+  try {
+    state.branches = await api.get('/branches/');
+    if (state.branches.length) {
+      state.selectedBranch = state.user.branch_id || state.branches[0].id;
+    }
+  } catch { state.branches = []; }
+
+  // Branch selector
+  if (isAdmin() && state.branches.length) {
+    show($('#branch-selector'));
+    const sel = $('#branch-select');
+    html(sel, state.branches.map(b =>
+      `<option value="${b.id}" ${b.id === state.selectedBranch ? 'selected' : ''}>${b.name}</option>`
+    ).join(''));
+    sel.addEventListener('change', (e) => {
+      state.selectedBranch = parseInt(e.target.value);
+      renderPage();
+    });
+  } else {
+    hide($('#branch-selector'));
+    if (state.user.branch_id) state.selectedBranch = state.user.branch_id;
+  }
+
+  buildSidebar();
+  navigate('dashboard');
+}
+
+// ── Page Router ─────────────────────────────────────────────
+function renderPage() {
+  const content = $('#content');
+  const route = state.currentRoute;
+  const pages = {
+    dashboard: renderDashboard,
+    pos: renderPOS,
+    orders: renderOrders,
+    tables: renderTables,
+    history: renderHistory,
+    profile: renderProfile,
+    branches: renderBranches,
+    users: renderUsers,
+    categories: renderCategories,
+    products: renderProducts,
+    sizes: renderSizes,
+    extras: renderExtras,
+    'menu-items': renderMenuItems,
+  };
+  const renderer = pages[route];
+  if (renderer) renderer(content);
+  else html(content, '<div class="empty-state"><div class="empty-icon">🔍</div><p>Page not found</p></div>');
+}
+
+// ── Dashboard ───────────────────────────────────────────────
+async function renderDashboard(el) {
+  if (isAdmin()) {
+    html(el, `
+      <div class="page-header"><h2>Admin Dashboard</h2></div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Branches</div><div class="stat-value" id="dash-branches">—</div></div>
+        <div class="stat-card"><div class="stat-label">Orders Today</div><div class="stat-value" id="dash-orders">—</div></div>
+        <div class="stat-card"><div class="stat-label">Active Users</div><div class="stat-value" id="dash-users">—</div></div>
+        <div class="stat-card"><div class="stat-label">Menu Items</div><div class="stat-value" id="dash-menu">—</div></div>
+      </div>
+      <div class="card"><div class="card-header">Recent Activity</div><div class="card-body" id="dash-activity"><div class="loading-center"><div class="spinner"></div></div></div></div>
+    `);
+    try {
+      const [branches, orders, menuItems] = await Promise.all([
+        api.get('/branches/'),
+        state.selectedBranch ? api.get(`/orders/?branch_id=${state.selectedBranch}`) : Promise.resolve([]),
+        api.get('/menu-items/').catch(() => []),
+      ]);
+      $('#dash-branches').textContent = branches.length;
+      $('#dash-orders').textContent = orders.length;
+      $('#dash-menu').textContent = menuItems.length;
+      try {
+        const users = await api.get('/users/');
+        $('#dash-users').textContent = users.filter(u => u.is_active).length;
+      } catch { $('#dash-users').textContent = '—'; }
+      if (orders.length) {
+        html($('#dash-activity'), orders.slice(0, 10).map(o =>
+          `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
+            <span>Order #${o.id}</span>
+            <span class="badge badge-${actionBadge(o.action)}">${o.action}</span>
+            <span class="tabular-nums">${formatMoney(o.total_amount)}</span>
+          </div>`
+        ).join(''));
+      } else {
+        html($('#dash-activity'), '<div class="empty-state"><p>No recent orders</p></div>');
+      }
+    } catch (err) {
+      html($('#dash-activity'), `<div class="error-message">${err.message}</div>`);
+    }
+  } else {
+    html(el, `
+      <div class="page-header"><h2>Dashboard</h2></div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Active Orders</div><div class="stat-value" id="dash-active">—</div></div>
+        <div class="stat-card"><div class="stat-label">Available Tables</div><div class="stat-value" id="dash-tables">—</div></div>
+        <div class="stat-card"><div class="stat-label">Today's Revenue</div><div class="stat-value tabular-nums" id="dash-revenue">—</div></div>
+      </div>
+      <div class="card"><div class="card-header">Recent Orders</div><div class="card-body" id="dash-recent"><div class="loading-center"><div class="spinner"></div></div></div></div>
+    `);
+    try {
+      const bid = state.selectedBranch;
+      const [orders, tables] = await Promise.all([
+        bid ? api.get(`/orders/?branch_id=${bid}`) : Promise.resolve([]),
+        bid ? api.get(`/tables/branch/${bid}`) : Promise.resolve([]),
+      ]);
+      const active = orders.filter(o => o.action === 'CREATE' || o.action === 'UPDATE');
+      const avail = tables.filter(t => t.is_available);
+      const revenue = orders.filter(o => o.action === 'CHECKOUT').reduce((s, o) => s + parseFloat(o.total_amount || 0), 0);
+      $('#dash-active').textContent = active.length;
+      $('#dash-tables').textContent = `${avail.length} / ${tables.length}`;
+      $('#dash-revenue').textContent = formatMoney(revenue);
+      if (orders.length) {
+        html($('#dash-recent'), orders.slice(0, 8).map(o =>
+          `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
+            <span>Order #${o.id}</span>
+            <span class="badge badge-${actionBadge(o.action)}">${o.action}</span>
+            <span class="tabular-nums">${formatMoney(o.total_amount)}</span>
+          </div>`
+        ).join(''));
+      } else {
+        html($('#dash-recent'), '<div class="empty-state"><p>No orders yet</p></div>');
+      }
+    } catch (err) {
+      html($('#dash-recent'), `<div class="error-message">${err.message}</div>`);
+    }
+  }
+}
+
+function actionBadge(action) {
+  const map = { CREATE: 'info', UPDATE: 'warning', CHECKOUT: 'success', CANCEL: 'danger' };
+  return map[action] || 'gray';
+}
+
+// ── POS ─────────────────────────────────────────────────────
+async function renderPOS(el) {
+  html(el, `<div class="pos-layout">
+    <div class="pos-categories" id="pos-cats"><div class="loading-center"><div class="spinner"></div></div></div>
+    <div class="pos-products">
+      <div class="pos-search"><input type="text" id="pos-search-input" placeholder="Search products…"></div>
+      <div id="pos-product-grid" class="product-grid"><div class="loading-center"><div class="spinner"></div></div></div>
+    </div>
+    <div class="pos-cart">
+      <div class="cart-header">Current Order</div>
+      <div class="cart-table-info" id="cart-table-info">
+        <span id="cart-table-label">No table selected</span>
+        <button class="btn btn-sm btn-outline" id="cart-pick-table">Pick Table</button>
+      </div>
+      <div class="cart-items" id="cart-items"></div>
+      <div class="cart-summary" id="cart-summary"></div>
+      <div class="cart-actions">
+        <button class="btn btn-success btn-lg" id="cart-checkout-btn" disabled>Checkout</button>
+        <div class="flex gap-sm">
+          <button class="btn btn-outline btn-sm w-full" id="cart-hold-btn">Hold</button>
+          <button class="btn btn-danger btn-sm w-full" id="cart-clear-btn">Clear</button>
+        </div>
+      </div>
+    </div>
+    <div class="pos-bottom">
+      <span class="text-sm text-muted">Items: <strong id="pos-total-items">0</strong></span>
+      <span class="text-sm text-muted">Subtotal: <strong class="tabular-nums" id="pos-subtotal">0.00</strong></span>
+      <span class="text-sm font-bold">Total: <strong class="tabular-nums" id="pos-total">0.00</strong></span>
+      <span class="mt-auto"></span>
+      <button class="btn btn-sm btn-outline" id="pos-walkin-btn">Walk-in / Takeaway</button>
+    </div>
+  </div>`);
+
+  const bid = state.selectedBranch;
+  // Load data
+  try {
+    const [cats, items] = await Promise.all([
+      api.get('/categories/'),
+      bid ? api.get(`/menu-items/branch/${bid}`) : api.get('/menu-items/'),
+    ]);
+    state.categories = cats;
+    state.menuItems = items;
+    // Enrich items with product/size names
+    await enrichMenuItems();
+    renderPOSCategories(null);
+    renderPOSProducts(state.menuItems);
+  } catch (err) {
+    html($('#pos-product-grid'), `<div class="error-message">${err.message}</div>`);
+  }
+
+  // Search
+  $('#pos-search-input').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    const filtered = state.menuItems.filter(mi =>
+      (mi._productName || '').toLowerCase().includes(q) ||
+      (mi._sizeName || '').toLowerCase().includes(q)
+    );
+    renderPOSProducts(filtered);
+  });
+
+  // Table picker
+  $('#cart-pick-table').addEventListener('click', showTablePicker);
+  $('#pos-walkin-btn').addEventListener('click', () => {
+    state.cartTable = null;
+    $('#cart-table-label').textContent = 'Walk-in / Takeaway';
+  });
+
+  // Checkout
+  $('#cart-checkout-btn').addEventListener('click', handleCheckout);
+  $('#cart-clear-btn').addEventListener('click', () => {
+    state.cart = [];
+    state.cartTable = null;
+    renderCart();
+    $('#cart-table-label').textContent = 'No table selected';
+  });
+
+  renderCart();
+}
+
+let _productCache = {};
+let _sizeCache = {};
+
+async function enrichMenuItems() {
+  // Fetch products and sizes for name display
+  try {
+    if (!Object.keys(_productCache).length) {
+      const prods = await api.get('/products/');
+      prods.forEach(p => _productCache[p.id] = p.name);
+    }
+  } catch {}
+  try {
+    if (!Object.keys(_sizeCache).length) {
+      const sizes = await api.get('/sizes/');
+      sizes.forEach(s => _sizeCache[s.id] = s.name);
+    }
+  } catch {}
+  state.menuItems.forEach(mi => {
+    mi._productName = _productCache[mi.product_id] || `Product ${mi.product_id}`;
+    mi._sizeName = _sizeCache[mi.size_id] || `Size ${mi.size_id}`;
+  });
+}
+
+function renderPOSCategories(activeCatId) {
+  const el = $('#pos-cats');
+  let h = `<div class="cat-item ${activeCatId === null ? 'active' : ''}" data-cat="all">All Items</div>`;
+  for (const c of state.categories) {
+    h += `<div class="cat-item ${activeCatId === c.id ? 'active' : ''}" data-cat="${c.id}">${c.name}</div>`;
+  }
+  html(el, h);
+  el.querySelectorAll('.cat-item').forEach(ci => {
+    ci.addEventListener('click', () => {
+      const catId = ci.dataset.cat === 'all' ? null : parseInt(ci.dataset.cat);
+      renderPOSCategories(catId);
+      // Get category's product ids
+      if (catId) {
+        const prodIds = Object.entries(_productCache).length
+          ? state.menuItems.filter(mi => {
+              // We need category_id on product. Let's filter via product API data.
+              return true; // We'll do a simpler filter
+            })
+          : state.menuItems;
+        // Simple: filter by checking the product -> category mapping
+        filterByCategory(catId);
+      } else {
+        renderPOSProducts(state.menuItems);
+      }
+    });
+  });
+}
+
+async function filterByCategory(catId) {
+  try {
+    const prods = await api.get(`/categories/${catId}/products`);
+    const prodIds = new Set(prods.map(p => p.id));
+    const filtered = state.menuItems.filter(mi => prodIds.has(mi.product_id));
+    renderPOSProducts(filtered);
+  } catch {
+    renderPOSProducts(state.menuItems);
+  }
+}
+
+function renderPOSProducts(items) {
+  const grid = $('#pos-product-grid');
+  if (!items.length) {
+    html(grid, '<div class="empty-state"><div class="empty-icon">🍽</div><p>No items found</p></div>');
+    return;
+  }
+  html(grid, items.map(mi => `
+    <div class="product-card" data-mi-id="${mi.id}">
+      <div class="product-name">${mi._productName || 'Item'}</div>
+      <div class="product-size">${mi._sizeName || ''}</div>
+      <div class="product-price">${formatMoney(mi.price)}</div>
+      ${mi.menu_items_extras && mi.menu_items_extras.length ? `<div class="product-extras">+${mi.menu_items_extras.length} extras</div>` : ''}
+    </div>
+  `).join(''));
+  grid.querySelectorAll('.product-card').forEach(card => {
+    card.addEventListener('click', () => addToCart(parseInt(card.dataset.miId)));
+  });
+}
+
+function addToCart(menuItemId) {
+  const mi = state.menuItems.find(m => m.id === menuItemId);
+  if (!mi) return;
+  const existing = state.cart.find(c => c.menuItemId === menuItemId);
+  if (existing) {
+    existing.quantity++;
+  } else {
+    state.cart.push({
+      menuItemId,
+      name: mi._productName,
+      size: mi._sizeName,
+      price: parseFloat(mi.price),
+      quantity: 1,
+      extras: [],
+    });
+  }
+  renderCart();
+  toast(`Added ${mi._productName}`, 'success');
+}
+
+function renderCart() {
+  const itemsEl = $('#cart-items');
+  const summaryEl = $('#cart-summary');
+
+  if (!state.cart.length) {
+    html(itemsEl, '<div class="empty-state"><div class="empty-icon">🛒</div><p>Cart is empty</p></div>');
+    html(summaryEl, '');
+    $('#cart-checkout-btn').disabled = true;
+    if ($('#pos-total-items')) $('#pos-total-items').textContent = '0';
+    if ($('#pos-subtotal')) $('#pos-subtotal').textContent = '0.00';
+    if ($('#pos-total')) $('#pos-total').textContent = '0.00';
+    return;
+  }
+
+  html(itemsEl, state.cart.map((item, idx) => `
+    <div class="cart-item">
+      <div class="cart-item-info">
+        <div class="cart-item-name">${item.name}</div>
+        <div class="cart-item-extras">${item.size}${item.extras.length ? ' · ' + item.extras.map(e => e.name).join(', ') : ''}</div>
+      </div>
+      <div class="cart-item-qty">
+        <button data-action="dec" data-idx="${idx}">−</button>
+        <span>${item.quantity}</span>
+        <button data-action="inc" data-idx="${idx}">+</button>
+      </div>
+      <div class="cart-item-price">${formatMoney(item.price * item.quantity)}</div>
+    </div>
+  `).join(''));
+
+  itemsEl.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      if (btn.dataset.action === 'inc') state.cart[idx].quantity++;
+      else {
+        state.cart[idx].quantity--;
+        if (state.cart[idx].quantity <= 0) state.cart.splice(idx, 1);
+      }
+      renderCart();
+    });
+  });
+
+  const subtotal = state.cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const tax = subtotal * 0.0; // Configurable
+  const total = subtotal + tax;
+  const totalItems = state.cart.reduce((s, i) => s + i.quantity, 0);
+
+  html(summaryEl, `
+    <div class="cart-summary-row"><span>Subtotal</span><span class="tabular-nums">${formatMoney(subtotal)}</span></div>
+    <div class="cart-summary-row"><span>Tax</span><span class="tabular-nums">${formatMoney(tax)}</span></div>
+    <div class="cart-summary-row total"><span>Total</span><span class="tabular-nums">${formatMoney(total)}</span></div>
+  `);
+
+  $('#cart-checkout-btn').disabled = false;
+  if ($('#pos-total-items')) $('#pos-total-items').textContent = totalItems;
+  if ($('#pos-subtotal')) $('#pos-subtotal').textContent = formatMoney(subtotal);
+  if ($('#pos-total')) $('#pos-total').textContent = formatMoney(total);
+}
+
+async function showTablePicker() {
+  const bid = state.selectedBranch;
+  if (!bid) { toast('Select a branch first', 'warning'); return; }
+  try {
+    const tables = await api.get(`/tables/branch/${bid}/available`);
+    showModal('Select Table', `
+      <div class="table-grid">
+        ${tables.map(t => `
+          <div class="table-card available" data-tid="${t.id}">
+            <div class="table-number">T${t.id}</div>
+            <div class="table-chairs">${t.num_chairs} chairs</div>
+          </div>
+        `).join('')}
+        ${!tables.length ? '<div class="empty-state"><p>No available tables</p></div>' : ''}
+      </div>
+    `);
+    $$('#modal-container .table-card').forEach(card => {
+      card.addEventListener('click', () => {
+        state.cartTable = parseInt(card.dataset.tid);
+        $('#cart-table-label').textContent = `Table T${state.cartTable}`;
+        closeModal();
+        toast('Table selected', 'success');
+      });
+    });
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function handleCheckout() {
+  if (!state.cart.length) return;
+  const bid = state.selectedBranch;
+  if (!bid) { toast('Select a branch first', 'warning'); return; }
+
+  // Show payment method dialog
+  showModal('Checkout', `
+    <div class="form-group">
+      <label>Payment Method</label>
+      <select id="checkout-payment">
+        <option value="CASH">Cash</option>
+        <option value="CARD">Card</option>
+        <option value="MOBILE">Mobile</option>
+      </select>
+    </div>
+    <div class="cart-summary-row total" style="display:flex;justify-content:space-between;font-size:1.1rem;font-weight:700;margin-top:12px;">
+      <span>Total</span>
+      <span class="tabular-nums">${formatMoney(state.cart.reduce((s, i) => s + i.price * i.quantity, 0))}</span>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:8px;">
+      <button class="btn btn-success btn-lg w-full" id="confirm-checkout">Confirm & Pay</button>
+      <button class="btn btn-outline" id="cancel-checkout">Cancel</button>
+    </div>
+  `);
+
+  $('#cancel-checkout').addEventListener('click', closeModal);
+  $('#confirm-checkout').addEventListener('click', async () => {
+    const payment = $('#checkout-payment').value;
+    try {
+      // 1. Create order
+      const orderData = {
+        cashier_id: state.user.id,
+        branch_id: bid,
+        table_id: state.cartTable,
+        total_amount: state.cart.reduce((s, i) => s + i.price * i.quantity, 0),
+        items: state.cart.map(c => ({
+          menu_item_id: c.menuItemId,
+          quantity: c.quantity,
+          price_at_time: c.price,
+          extras: c.extras.map(e => ({
+            menu_item_extra_id: e.id,
+            quantity: 1,
+            price_at_time: e.price,
+          })),
+        })),
+      };
+      const order = await api.post('/orders/', orderData);
+
+      // 2. Checkout
+      await api.post(`/orders/${order.id}/checkout`, { payment_method: payment });
+
+      state.cart = [];
+      state.cartTable = null;
+      closeModal();
+      toast('Order completed successfully!', 'success');
+      renderPOS($('#content'));
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
+}
+
+// ── Active Orders ───────────────────────────────────────────
+async function renderOrders(el) {
+  html(el, `
+    <div class="page-header"><h2>Active Orders</h2><button class="btn btn-primary" id="refresh-orders">Refresh</button></div>
+    <div id="orders-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+
+  const bid = state.selectedBranch;
+  if (!bid) { html($('#orders-list'), '<div class="empty-state"><p>Select a branch</p></div>'); return; }
+
+  try {
+    const orders = await api.get(`/orders/?branch_id=${bid}`);
+    state.orders = orders;
+    const active = orders.filter(o => o.action === 'CREATE' || o.action === 'UPDATE');
+    if (!active.length) {
+      html($('#orders-list'), '<div class="empty-state"><div class="empty-icon">📋</div><p>No active orders</p></div>');
+      return;
+    }
+    html($('#orders-list'), `
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead><tr>
+            <th>Order #</th><th>Table</th><th>Status</th><th>Payment</th><th>Total</th><th>Created</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            ${active.map(o => `<tr>
+              <td><strong>#${o.id}</strong></td>
+              <td>${o.table_id ? 'T' + o.table_id : 'Walk-in'}</td>
+              <td><span class="badge badge-${actionBadge(o.action)}">${o.action}</span></td>
+              <td>${o.payment_method || '—'}</td>
+              <td class="tabular-nums font-bold">${formatMoney(o.total_amount)}</td>
+              <td class="text-sm text-muted">${formatDate(o.created_at)}</td>
+              <td>
+                <button class="btn btn-sm btn-outline" data-view-order="${o.id}">View</button>
+                <button class="btn btn-sm btn-success" data-checkout-order="${o.id}">Checkout</button>
+                <button class="btn btn-sm btn-danger" data-cancel-order="${o.id}">Cancel</button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    `);
+
+    el.querySelectorAll('[data-view-order]').forEach(btn => {
+      btn.addEventListener('click', () => showOrderDetail(parseInt(btn.dataset.viewOrder)));
+    });
+    el.querySelectorAll('[data-checkout-order]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          await api.post(`/orders/${btn.dataset.checkoutOrder}/checkout`, { payment_method: 'CASH' });
+          toast('Order checked out!', 'success');
+          renderOrders(el);
+        } catch (err) { toast(err.message, 'error'); }
+      });
+    });
+    el.querySelectorAll('[data-cancel-order]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Cancel this order?')) return;
+        try {
+          await api.post(`/orders/${btn.dataset.cancelOrder}/cancel`, {});
+          toast('Order cancelled', 'warning');
+          renderOrders(el);
+        } catch (err) { toast(err.message, 'error'); }
+      });
+    });
+  } catch (err) {
+    html($('#orders-list'), `<div class="error-message">${err.message}</div>`);
+  }
+
+  $('#refresh-orders').addEventListener('click', () => renderOrders(el));
+}
+
+async function showOrderDetail(orderId) {
+  try {
+    const order = await api.get(`/orders/${orderId}`);
+    const historyData = await api.get(`/history/orders/${orderId}`).catch(() => []);
+
+    openDrawer(`Order #${orderId}`, `
+      <div class="tabs" id="order-tabs">
+        <div class="tab-item active" data-tab="summary">Summary</div>
+        <div class="tab-item" data-tab="items">Items</div>
+        <div class="tab-item" data-tab="timeline">History</div>
+      </div>
+
+      <div class="tab-content active" id="tab-summary">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:0.85rem;">
+          <div><span class="text-muted">Status</span><br><span class="badge badge-${actionBadge(order.action)}">${order.action}</span></div>
+          <div><span class="text-muted">Payment</span><br><strong>${order.payment_method || '—'}</strong></div>
+          <div><span class="text-muted">Table</span><br><strong>${order.table_id ? 'T' + order.table_id : 'Walk-in'}</strong></div>
+          <div><span class="text-muted">Total</span><br><strong class="tabular-nums text-lg">${formatMoney(order.total_amount)}</strong></div>
+          <div><span class="text-muted">Created</span><br>${formatDate(order.created_at)}</div>
+          <div><span class="text-muted">Updated</span><br>${formatDate(order.updated_at)}</div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-items">
+        ${(order.order_items || []).map(item => `
+          <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem;display:flex;justify-content:space-between;">
+            <div>
+              <strong>Item #${item.menu_item_id}</strong> × ${item.quantity}
+              ${(item.order_item_extras || []).length ? '<br><span class="text-xs text-muted">+ extras</span>' : ''}
+            </div>
+            <div class="tabular-nums font-bold">${formatMoney(item.price_at_time * item.quantity)}</div>
+          </div>
+        `).join('') || '<div class="empty-state"><p>No items</p></div>'}
+      </div>
+
+      <div class="tab-content" id="tab-timeline">
+        <div class="timeline">
+          ${historyData.map(h => `
+            <div class="timeline-item">
+              <div class="tl-time">${formatDate(h.timestamp)}</div>
+              <div class="tl-action">${h.action}</div>
+              <div class="tl-detail">Total at time: ${formatMoney(h.total_amount_at_time)} · Cashier #${h.cashier_id}</div>
+            </div>
+          `).join('') || '<div class="empty-state"><p>No history</p></div>'}
+        </div>
+      </div>
+    `);
+
+    setupTabs('order-tabs');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// ── Tables ──────────────────────────────────────────────────
+async function renderTables(el) {
+  html(el, `
+    <div class="page-header"><h2>Tables</h2>${isAdmin() ? '<button class="btn btn-primary" id="add-table-btn">Add Table</button>' : ''}</div>
+    <div id="tables-grid"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+
+  const bid = state.selectedBranch;
+  if (!bid) { html($('#tables-grid'), '<div class="empty-state"><p>Select a branch</p></div>'); return; }
+
+  try {
+    const tables = await api.get(`/tables/branch/${bid}`);
+    state.tables = tables;
+    if (!tables.length) {
+      html($('#tables-grid'), '<div class="empty-state"><div class="empty-icon">🪑</div><p>No tables configured</p></div>');
+    } else {
+      html($('#tables-grid'), `<div class="table-grid">${tables.map(t => `
+        <div class="table-card ${t.is_available ? 'available' : 'occupied'}" data-table-id="${t.id}">
+          <div class="table-number">T${t.id}</div>
+          <div class="table-chairs">${t.num_chairs} chairs</div>
+          <span class="badge ${t.is_available ? 'badge-success' : 'badge-danger'}">${t.is_available ? 'Available' : 'Occupied'}</span>
+        </div>
+      `).join('')}</div>`);
+
+      el.querySelectorAll('.table-card').forEach(card => {
+        card.addEventListener('click', () => showTableActions(parseInt(card.dataset.tableId)));
+      });
+    }
+  } catch (err) {
+    html($('#tables-grid'), `<div class="error-message">${err.message}</div>`);
+  }
+
+  if (isAdmin() && $('#add-table-btn')) {
+    $('#add-table-btn').addEventListener('click', () => showTableForm());
+  }
+}
+
+function showTableActions(tableId) {
+  const t = state.tables.find(x => x.id === tableId);
+  if (!t) return;
+  showModal(`Table T${tableId}`, `
+    <div style="text-align:center;margin-bottom:16px;">
+      <div class="table-number" style="font-size:2rem;">${t.num_chairs} chairs</div>
+      <span class="badge ${t.is_available ? 'badge-success' : 'badge-danger'}">${t.is_available ? 'Available' : 'Occupied'}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn btn-primary" id="table-toggle-avail">${t.is_available ? 'Mark Occupied' : 'Mark Available'}</button>
+      ${isAdmin() ? `<button class="btn btn-danger" id="table-delete">Delete Table</button>` : ''}
+    </div>
+  `);
+  $('#table-toggle-avail').addEventListener('click', async () => {
+    try {
+      await api.patch(`/tables/${tableId}`, { is_available: !t.is_available });
+      closeModal();
+      toast('Table updated', 'success');
+      renderTables($('#content'));
+    } catch (err) { toast(err.message, 'error'); }
+  });
+  if ($('#table-delete')) {
+    $('#table-delete').addEventListener('click', async () => {
+      if (!confirm('Delete this table?')) return;
+      try {
+        await api.del(`/tables/${tableId}`);
+        closeModal();
+        toast('Table deleted', 'success');
+        renderTables($('#content'));
+      } catch (err) { toast(err.message, 'error'); }
+    });
+  }
+}
+
+function showTableForm() {
+  openDrawer('Add Table', `
+    <form id="table-form">
+      <div class="form-group">
+        <label>Branch</label>
+        <select id="tf-branch" disabled><option value="${state.selectedBranch}">Current Branch</option></select>
+      </div>
+      <div class="form-group">
+        <label>Number of Chairs</label>
+        <input type="number" id="tf-chairs" min="1" value="4" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Create Table</button>
+    </form>
+  `);
+  $('#table-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/tables/', {
+        branch_id: state.selectedBranch,
+        num_chairs: parseInt($('#tf-chairs').value),
+      });
+      closeDrawer();
+      toast('Table created', 'success');
+      renderTables($('#content'));
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+// ── Order History ───────────────────────────────────────────
+async function renderHistory(el) {
+  html(el, `
+    <div class="page-header"><h2>Order History</h2></div>
+    <div id="history-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+  const bid = state.selectedBranch;
+  if (!bid) { html($('#history-list'), '<div class="empty-state"><p>Select a branch</p></div>'); return; }
+  try {
+    const orders = await api.get(`/orders/?branch_id=${bid}`);
+    const completed = orders.filter(o => o.action === 'CHECKOUT' || o.action === 'CANCEL');
+    if (!completed.length) {
+      html($('#history-list'), '<div class="empty-state"><div class="empty-icon">📜</div><p>No completed orders</p></div>');
+      return;
+    }
+    html($('#history-list'), `
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead><tr><th>Order</th><th>Status</th><th>Payment</th><th>Total</th><th>Date</th><th></th></tr></thead>
+          <tbody>
+            ${completed.map(o => `<tr>
+              <td><strong>#${o.id}</strong></td>
+              <td><span class="badge badge-${actionBadge(o.action)}">${o.action}</span></td>
+              <td>${o.payment_method || '—'}</td>
+              <td class="tabular-nums font-bold">${formatMoney(o.total_amount)}</td>
+              <td class="text-sm text-muted">${formatDate(o.created_at)}</td>
+              <td><button class="btn btn-sm btn-outline" data-view-order="${o.id}">View</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    `);
+    el.querySelectorAll('[data-view-order]').forEach(btn => {
+      btn.addEventListener('click', () => showOrderDetail(parseInt(btn.dataset.viewOrder)));
+    });
+  } catch (err) {
+    html($('#history-list'), `<div class="error-message">${err.message}</div>`);
+  }
+}
+
+// ── Profile ─────────────────────────────────────────────────
+function renderProfile(el) {
+  const u = state.user;
+  html(el, `
+    <div class="page-header"><h2>Profile</h2></div>
+    <div class="card" style="max-width:480px;">
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+          <div class="user-avatar" style="width:56px;height:56px;font-size:1.4rem;">${(u.username || '?')[0].toUpperCase()}</div>
+          <div>
+            <div class="font-bold text-lg">${u.username}</div>
+            <div class="badge badge-info">${u.role}</div>
+          </div>
+        </div>
+        <div style="font-size:0.85rem;display:grid;gap:8px;">
+          <div><span class="text-muted">User ID:</span> ${u.id}</div>
+          <div><span class="text-muted">Branch ID:</span> ${u.branch_id}</div>
+          <div><span class="text-muted">Status:</span> <span class="badge ${u.is_active ? 'badge-success' : 'badge-danger'}">${u.is_active ? 'Active' : 'Inactive'}</span></div>
+        </div>
+        <hr style="margin:20px 0;border:none;border-top:1px solid var(--border);">
+        <h4 style="margin-bottom:12px;">Reset Password</h4>
+        <form id="reset-pw-form">
+          <div class="form-group">
+            <label>New Password</label>
+            <input type="password" id="new-pw" required minlength="4">
+          </div>
+          <button type="submit" class="btn btn-primary">Update Password</button>
+        </form>
+      </div>
+    </div>
+  `);
+  $('#reset-pw-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/auth/reset-password', { new_password: $('#new-pw').value });
+      toast('Password updated', 'success');
+      $('#new-pw').value = '';
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+// ── Admin: Branches ─────────────────────────────────────────
+async function renderBranches(el) {
+  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
+  html(el, `
+    <div class="page-header"><h2>Branches</h2><button class="btn btn-primary" id="add-branch-btn">Add Branch</button></div>
+    <div id="branches-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+  try {
+    const branches = await api.get('/branches/');
+    state.branches = branches;
+    if (!branches.length) {
+      html($('#branches-list'), '<div class="empty-state"><div class="empty-icon">🏢</div><p>No branches</p></div>');
+    } else {
+      html($('#branches-list'), `
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead><tr><th>ID</th><th>Name</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${branches.map(b => `<tr>
+                <td>${b.id}</td>
+                <td><strong>${b.name}</strong></td>
+                <td class="text-sm text-muted">${formatDate(b.created_at)}</td>
+                <td>
+                  <button class="btn btn-sm btn-outline" data-edit-branch="${b.id}">Edit</button>
+                  <button class="btn btn-sm btn-danger" data-del-branch="${b.id}">Delete</button>
+                </td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      `);
+      el.querySelectorAll('[data-edit-branch]').forEach(btn => {
+        btn.addEventListener('click', () => showBranchForm(parseInt(btn.dataset.editBranch)));
+      });
+      el.querySelectorAll('[data-del-branch]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this branch?')) return;
+          try {
+            await api.del(`/branches/${btn.dataset.delBranch}`);
+            toast('Branch deleted', 'success');
+            renderBranches(el);
+          } catch (err) { toast(err.message, 'error'); }
+        });
+      });
+    }
+  } catch (err) {
+    html($('#branches-list'), `<div class="error-message">${err.message}</div>`);
+  }
+
+  $('#add-branch-btn').addEventListener('click', () => showBranchForm());
+}
+
+function showBranchForm(branchId = null) {
+  const isEdit = !!branchId;
+  const branch = isEdit ? state.branches.find(b => b.id === branchId) : null;
+  openDrawer(isEdit ? 'Edit Branch' : 'Add Branch', `
+    <form id="branch-form">
+      <div class="form-group">
+        <label>Branch Name</label>
+        <input type="text" id="bf-name" value="${branch ? branch.name : ''}" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">${isEdit ? 'Update' : 'Create'}</button>
+    </form>
+  `);
+  $('#branch-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = { name: $('#bf-name').value.trim() };
+    try {
+      if (isEdit) await api.put(`/branches/${branchId}`, data);
+      else await api.post('/branches/', data);
+      closeDrawer();
+      toast(`Branch ${isEdit ? 'updated' : 'created'}`, 'success');
+      renderBranches($('#content'));
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+// ── Admin: Users ────────────────────────────────────────────
+async function renderUsers(el) {
+  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
+  html(el, `
+    <div class="page-header"><h2>Users</h2><button class="btn btn-primary" id="add-user-btn">Add User</button></div>
+    <div id="users-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+  try {
+    const users = await api.get('/users/');
+    state.users = users;
+    html($('#users-list'), `
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead><tr><th>Username</th><th>Role</th><th>Branch</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${users.map(u => `<tr>
+              <td><strong>${u.username}</strong></td>
+              <td><span class="badge badge-info">${u.role}</span></td>
+              <td>${u.branch_id}</td>
+              <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-danger'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+              <td><button class="btn btn-sm btn-outline" data-edit-user="${u.id}">Edit</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    `);
+    el.querySelectorAll('[data-edit-user]').forEach(btn => {
+      btn.addEventListener('click', () => showUserForm(parseInt(btn.dataset.editUser)));
+    });
+  } catch (err) {
+    html($('#users-list'), `<div class="error-message">${err.message}</div>`);
+  }
+
+  $('#add-user-btn').addEventListener('click', () => showUserForm());
+}
+
+function showUserForm(userId = null) {
+  const isEdit = !!userId;
+  const user = isEdit ? state.users.find(u => u.id === userId) : null;
+  openDrawer(isEdit ? 'Edit User' : 'Add User', `
+    <form id="user-form">
+      <div class="form-group">
+        <label>Branch</label>
+        <select id="uf-branch" required>
+          ${state.branches.map(b => `<option value="${b.id}" ${user && user.branch_id === b.id ? 'selected' : ''}>${b.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="uf-username" value="${user ? user.username : ''}" required>
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="uf-role">
+          <option value="CASHIER" ${user && user.role === 'CASHIER' ? 'selected' : ''}>Cashier</option>
+          <option value="ADMIN" ${user && user.role === 'ADMIN' ? 'selected' : ''}>Admin</option>
+        </select>
+      </div>
+      ${!isEdit ? `<div class="form-group"><label>Password</label><input type="password" id="uf-password" required></div>` : ''}
+      ${isEdit ? `
+        <div class="form-group">
+          <label>Active</label>
+          <select id="uf-active">
+            <option value="true" ${user && user.is_active ? 'selected' : ''}>Active</option>
+            <option value="false" ${user && !user.is_active ? 'selected' : ''}>Inactive</option>
+          </select>
+        </div>
+      ` : ''}
+      <button type="submit" class="btn btn-primary btn-block">${isEdit ? 'Update' : 'Create'}</button>
+    </form>
+  `);
+  $('#user-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      if (isEdit) {
+        await api.patch(`/users/${userId}`, {
+          branch_id: parseInt($('#uf-branch').value),
+          username: $('#uf-username').value.trim(),
+          role: $('#uf-role').value,
+          is_active: $('#uf-active').value === 'true',
+        });
+      } else {
+        await api.post('/users/', {
+          branch_id: parseInt($('#uf-branch').value),
+          username: $('#uf-username').value.trim(),
+          role: $('#uf-role').value,
+          password: $('#uf-password').value,
+        });
+      }
+      closeDrawer();
+      toast(`User ${isEdit ? 'updated' : 'created'}`, 'success');
+      renderUsers($('#content'));
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+// ── Admin: Categories ───────────────────────────────────────
+async function renderCategories(el) {
+  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
+  html(el, `
+    <div class="page-header"><h2>Categories</h2><button class="btn btn-primary" id="add-cat-btn">Add Category</button></div>
+    <div id="cat-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+  try {
+    const cats = await api.get('/categories/');
+    state.categories = cats;
+    html($('#cat-list'), crudTable(cats, ['id', 'name', 'created_at'], 'cat'));
+    bindCrudActions(el, 'cat', renderCategories, showCategoryForm, '/categories');
+  } catch (err) {
+    html($('#cat-list'), `<div class="error-message">${err.message}</div>`);
+  }
+  $('#add-cat-btn').addEventListener('click', () => showCategoryForm());
+}
+
+function showCategoryForm(id = null) {
+  const item = id ? state.categories.find(c => c.id === id) : null;
+  openDrawer(id ? 'Edit Category' : 'Add Category', `
+    <form id="entity-form">
+      <div class="form-group"><label>Name</label><input type="text" id="ef-name" value="${item ? item.name : ''}" required></div>
+      <button type="submit" class="btn btn-primary btn-block">${id ? 'Update' : 'Create'}</button>
+    </form>
+  `);
+  $('#entity-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      if (id) await api.put(`/categories/${id}`, { name: $('#ef-name').value.trim() });
+      else await api.post('/categories/', { name: $('#ef-name').value.trim() });
+      closeDrawer();
+      toast(`Category ${id ? 'updated' : 'created'}`, 'success');
+      renderCategories($('#content'));
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+// ── Admin: Products ─────────────────────────────────────────
+async function renderProducts(el) {
+  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
+  html(el, `
+    <div class="page-header"><h2>Products</h2><button class="btn btn-primary" id="add-prod-btn">Add Product</button></div>
+    <div id="prod-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+  try {
+    const [prods, cats] = await Promise.all([
+      api.get('/products/'),
+      api.get('/categories/'),
+    ]);
+    state.products = prods;
+    state.categories = cats;
+    const catMap = {};
+    cats.forEach(c => catMap[c.id] = c.name);
+    html($('#prod-list'), `
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Actions</th></tr></thead>
+          <tbody>${prods.map(p => `<tr>
+            <td>${p.id}</td>
+            <td><strong>${p.name}</strong></td>
+            <td>${catMap[p.category_id] || p.category_id}</td>
+            <td>
+              <button class="btn btn-sm btn-outline" data-edit-prod="${p.id}">Edit</button>
+              <button class="btn btn-sm btn-danger" data-del-prod="${p.id}">Delete</button>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    `);
+    el.querySelectorAll('[data-edit-prod]').forEach(b => b.addEventListener('click', () => showProductForm(parseInt(b.dataset.editProd))));
+    el.querySelectorAll('[data-del-prod]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Delete?')) return;
+      try { await api.del(`/products/${b.dataset.delProd}`); toast('Deleted', 'success'); renderProducts(el); }
+      catch (err) { toast(err.message, 'error'); }
+    }));
+  } catch (err) {
+    html($('#prod-list'), `<div class="error-message">${err.message}</div>`);
+  }
+  $('#add-prod-btn').addEventListener('click', () => showProductForm());
+}
+
+function showProductForm(id = null) {
+  const item = id ? state.products.find(p => p.id === id) : null;
+  openDrawer(id ? 'Edit Product' : 'Add Product', `
+    <form id="entity-form">
+      <div class="form-group"><label>Name</label><input type="text" id="ef-name" value="${item ? item.name : ''}" required></div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="ef-cat" required>
+          ${state.categories.map(c => `<option value="${c.id}" ${item && item.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">${id ? 'Update' : 'Create'}</button>
+    </form>
+  `);
+  $('#entity-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = { name: $('#ef-name').value.trim(), category_id: parseInt($('#ef-cat').value) };
+    try {
+      if (id) await api.put(`/products/${id}`, data);
+      else await api.post('/products/', data);
+      closeDrawer();
+      toast(`Product ${id ? 'updated' : 'created'}`, 'success');
+      renderProducts($('#content'));
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+// ── Admin: Sizes ────────────────────────────────────────────
+async function renderSizes(el) {
+  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
+  html(el, `
+    <div class="page-header"><h2>Sizes</h2><button class="btn btn-primary" id="add-size-btn">Add Size</button></div>
+    <div id="size-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+  try {
+    const sizes = await api.get('/sizes/');
+    state.sizes = sizes;
+    html($('#size-list'), crudTable(sizes, ['id', 'name'], 'size'));
+    bindCrudActions(el, 'size', renderSizes, showSizeForm, '/sizes');
+  } catch (err) {
+    html($('#size-list'), `<div class="error-message">${err.message}</div>`);
+  }
+  $('#add-size-btn').addEventListener('click', () => showSizeForm());
+}
+
+function showSizeForm(id = null) {
+  const item = id ? state.sizes.find(s => s.id === id) : null;
+  openDrawer(id ? 'Edit Size' : 'Add Size', `
+    <form id="entity-form">
+      <div class="form-group"><label>Name</label><input type="text" id="ef-name" value="${item ? item.name : ''}" required></div>
+      <button type="submit" class="btn btn-primary btn-block">${id ? 'Update' : 'Create'}</button>
+    </form>
+  `);
+  $('#entity-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      if (id) await api.put(`/sizes/${id}`, { name: $('#ef-name').value.trim() });
+      else await api.post('/sizes/', { name: $('#ef-name').value.trim() });
+      closeDrawer();
+      toast(`Size ${id ? 'updated' : 'created'}`, 'success');
+      renderSizes($('#content'));
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+// ── Admin: Extras ───────────────────────────────────────────
+async function renderExtras(el) {
+  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
+  html(el, `
+    <div class="page-header"><h2>Extras</h2><button class="btn btn-primary" id="add-extra-btn">Add Extra</button></div>
+    <div id="extra-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+  try {
+    const extras = await api.get('/extras/');
+    state.extras = extras;
+    html($('#extra-list'), crudTable(extras, ['id', 'name'], 'extra'));
+    bindCrudActions(el, 'extra', renderExtras, showExtraForm, '/extras');
+  } catch (err) {
+    html($('#extra-list'), `<div class="error-message">${err.message}</div>`);
+  }
+  $('#add-extra-btn').addEventListener('click', () => showExtraForm());
+}
+
+function showExtraForm(id = null) {
+  const item = id ? state.extras.find(e => e.id === id) : null;
+  openDrawer(id ? 'Edit Extra' : 'Add Extra', `
+    <form id="entity-form">
+      <div class="form-group"><label>Name</label><input type="text" id="ef-name" value="${item ? item.name : ''}" required></div>
+      <button type="submit" class="btn btn-primary btn-block">${id ? 'Update' : 'Create'}</button>
+    </form>
+  `);
+  $('#entity-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      if (id) await api.put(`/extras/${id}`, { name: $('#ef-name').value.trim() });
+      else await api.post('/extras/', { name: $('#ef-name').value.trim() });
+      closeDrawer();
+      toast(`Extra ${id ? 'updated' : 'created'}`, 'success');
+      renderExtras($('#content'));
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+// ── Admin: Menu Items ───────────────────────────────────────
+async function renderMenuItems(el) {
+  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
+  html(el, `
+    <div class="page-header"><h2>Menu Items</h2><button class="btn btn-primary" id="add-mi-btn">Add Menu Item</button></div>
+    <div id="mi-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+  try {
+    const [items, prods, sizes, branches, extras] = await Promise.all([
+      api.get('/menu-items/'),
+      api.get('/products/'),
+      api.get('/sizes/'),
+      api.get('/branches/'),
+      api.get('/extras/'),
+    ]);
+    state.menuItems = items;
+    state.products = prods;
+    state.sizes = sizes;
+    state.branches = branches;
+    state.extras = extras;
+    const pMap = {}; prods.forEach(p => pMap[p.id] = p.name);
+    const sMap = {}; sizes.forEach(s => sMap[s.id] = s.name);
+    const bMap = {}; branches.forEach(b => bMap[b.id] = b.name);
+
+    html($('#mi-list'), `
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>Branch</th><th>Product</th><th>Size</th><th>Price</th><th>Actions</th></tr></thead>
+          <tbody>${items.map(mi => `<tr>
+            <td>${mi.id}</td>
+            <td>${bMap[mi.branch_id] || mi.branch_id}</td>
+            <td><strong>${pMap[mi.product_id] || mi.product_id}</strong></td>
+            <td>${sMap[mi.size_id] || mi.size_id}</td>
+            <td class="tabular-nums font-bold">${formatMoney(mi.price)}</td>
+            <td>
+              <button class="btn btn-sm btn-outline" data-edit-mi="${mi.id}">Edit</button>
+              <button class="btn btn-sm btn-danger" data-del-mi="${mi.id}">Delete</button>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    `);
+    el.querySelectorAll('[data-edit-mi]').forEach(b => b.addEventListener('click', () => showMenuItemForm(parseInt(b.dataset.editMi))));
+    el.querySelectorAll('[data-del-mi]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Delete?')) return;
+      try { await api.del(`/menu-items/${b.dataset.delMi}`); toast('Deleted', 'success'); renderMenuItems(el); }
+      catch (err) { toast(err.message, 'error'); }
+    }));
+  } catch (err) {
+    html($('#mi-list'), `<div class="error-message">${err.message}</div>`);
+  }
+  $('#add-mi-btn').addEventListener('click', () => showMenuItemForm());
+}
+
+function showMenuItemForm(id = null) {
+  const isEdit = !!id;
+  const item = isEdit ? state.menuItems.find(m => m.id === id) : null;
+
+  openDrawer(isEdit ? 'Edit Menu Item' : 'New Menu Item', `
+    <form id="mi-form">
+      <div class="form-group">
+        <label>Branch</label>
+        <select id="mi-branch" required>
+          ${state.branches.map(b => `<option value="${b.id}" ${item && item.branch_id === b.id ? 'selected' : ''}>${b.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Product</label>
+        <select id="mi-product" required>
+          ${state.products.map(p => `<option value="${p.id}" ${item && item.product_id === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Size</label>
+        <select id="mi-size" required>
+          ${state.sizes.map(s => `<option value="${s.id}" ${item && item.size_id === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Price</label>
+        <input type="number" id="mi-price" step="0.01" min="0" value="${item ? item.price : ''}" required>
+      </div>
+      <div class="form-group">
+        <label>Extras</label>
+        <div id="mi-extras-list">
+          ${state.extras.map(ex => `
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <input type="checkbox" id="mix-${ex.id}" data-extra-id="${ex.id}" ${item && item.menu_items_extras && item.menu_items_extras.find(e => e.extra_id === ex.id) ? 'checked' : ''}>
+              <label for="mix-${ex.id}" style="flex:1;margin:0;">${ex.name}</label>
+              <input type="number" step="0.01" min="0" placeholder="Price" style="width:80px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;"
+                data-extra-price="${ex.id}" value="${item && item.menu_items_extras && item.menu_items_extras.find(e => e.extra_id === ex.id) ? item.menu_items_extras.find(e => e.extra_id === ex.id).price : ''}">
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">${isEdit ? 'Update' : 'Create'}</button>
+
+      <div id="mi-preview" class="menu-preview-card">
+        <h4>Preview</h4>
+        <div class="preview-line" id="mi-preview-text">Select options above</div>
+        <div class="preview-price" id="mi-preview-price">—</div>
+      </div>
+    </form>
+  `);
+
+  // Live preview
+  function updatePreview() {
+    const bName = $('#mi-branch').selectedOptions[0]?.text || '';
+    const pName = $('#mi-product').selectedOptions[0]?.text || '';
+    const sName = $('#mi-size').selectedOptions[0]?.text || '';
+    const price = $('#mi-price').value || '0';
+    $('#mi-preview-text').textContent = `${pName} / ${sName} / ${bName}`;
+    $('#mi-preview-price').textContent = formatMoney(price);
+  }
+  ['#mi-branch', '#mi-product', '#mi-size', '#mi-price'].forEach(s => {
+    $(s).addEventListener('change', updatePreview);
+    $(s).addEventListener('input', updatePreview);
+  });
+  updatePreview();
+
+  $('#mi-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+      branch_id: parseInt($('#mi-branch').value),
+      product_id: parseInt($('#mi-product').value),
+      size_id: parseInt($('#mi-size').value),
+      price: parseFloat($('#mi-price').value),
+    };
+    // Collect extras
+    const extras = [];
+    $$('#mi-extras-list input[type="checkbox"]:checked').forEach(cb => {
+      const extraId = parseInt(cb.dataset.extraId);
+      const priceInput = $(`[data-extra-price="${extraId}"]`);
+      extras.push({
+        extra_id: extraId,
+        price: parseFloat(priceInput.value || 0),
+      });
+    });
+    data.extras = extras;
+
+    try {
+      if (isEdit) await api.put(`/menu-items/${id}`, data);
+      else await api.post('/menu-items/', data);
+      closeDrawer();
+      toast(`Menu item ${isEdit ? 'updated' : 'created'}`, 'success');
+      renderMenuItems($('#content'));
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+// ── Shared CRUD Helpers ─────────────────────────────────────
+function crudTable(items, cols, prefix) {
+  if (!items.length) return '<div class="empty-state"><p>No items</p></div>';
+  return `
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}<th>Actions</th></tr></thead>
+        <tbody>${items.map(item => `<tr>
+          ${cols.map(c => `<td>${c === 'created_at' ? formatDate(item[c]) : (item[c] ?? '')}</td>`).join('')}
+          <td>
+            <button class="btn btn-sm btn-outline" data-edit-${prefix}="${item.id}">Edit</button>
+            <button class="btn btn-sm btn-danger" data-del-${prefix}="${item.id}">Delete</button>
+          </td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function bindCrudActions(el, prefix, renderFn, formFn, apiPath) {
+  el.querySelectorAll(`[data-edit-${prefix}]`).forEach(b => {
+    b.addEventListener('click', () => formFn(parseInt(b.dataset[`edit${capitalize(prefix)}`])));
+  });
+  el.querySelectorAll(`[data-del-${prefix}]`).forEach(b => {
+    b.addEventListener('click', async () => {
+      if (!confirm('Delete?')) return;
+      try { await api.del(`${apiPath}/${b.dataset[`del${capitalize(prefix)}`]}`); toast('Deleted', 'success'); renderFn(el); }
+      catch (err) { toast(err.message, 'error'); }
+    });
+  });
+}
+
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// ── Modal / Drawer / Tabs ───────────────────────────────────
+function showModal(title, content) {
+  html($('#modal-container'), `
+    <div class="modal-header"><h3>${title}</h3><button class="btn btn-ghost btn-icon" id="modal-close-btn">✕</button></div>
+    <div class="modal-body">${content}</div>
+  `);
+  show($('#modal-overlay'));
+  $('#modal-close-btn').addEventListener('click', closeModal);
+  $('#modal-overlay').addEventListener('click', (e) => {
+    if (e.target === $('#modal-overlay')) closeModal();
+  });
+}
+
+function closeModal() { hide($('#modal-overlay')); }
+
+function openDrawer(title, content) {
+  $('#drawer-title').textContent = title;
+  html($('#drawer-content'), content);
+  show($('#drawer-overlay'));
+}
+
+function closeDrawer() { hide($('#drawer-overlay')); }
+$('#drawer-close').addEventListener('click', closeDrawer);
+$('#drawer-overlay').addEventListener('click', (e) => {
+  if (e.target === $('#drawer-overlay')) closeDrawer();
+});
+
+function setupTabs(containerId) {
+  const container = $(`#${containerId}`);
+  if (!container) return;
+  container.querySelectorAll('.tab-item').forEach(tab => {
+    tab.addEventListener('click', () => {
+      container.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const parent = container.parentElement;
+      parent.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+      const target = parent.querySelector(`#tab-${tab.dataset.tab}`);
+      if (target) target.classList.add('active');
+    });
+  });
+}
+
+// ── Sidebar toggle ──────────────────────────────────────────
+$('#sidebar-toggle').addEventListener('click', () => {
+  $('#sidebar').classList.toggle('collapsed');
+  $('#sidebar').classList.toggle('open');
+});
+
+// ── Init ────────────────────────────────────────────────────
+(function init() {
+  if (state.token && state.user) {
+    enterApp();
+  } else {
+    show($('#login-screen'));
+    $('#login-screen').classList.add('active');
+    $('#login-username').focus();
+  }
+})();
