@@ -8,3 +8,4 @@ from .size_router import router as size_router
 from .extra_router import router as extra_router
 from .order_router import router as order_router
 from .history_router import router as history_router
+from .menu_router import router as menu_router

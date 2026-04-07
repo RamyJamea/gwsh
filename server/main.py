@@ -1,17 +1,14 @@
-# import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-# from fastapi.staticfiles import StaticFiles
-
-# from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from .core import ENGINE, seed_admin_user
 from .models import *
 from .routes import auth_router, user_router
 from .routes import branch_router, table_router
 from .routes import category_router, product_router, size_router, extra_router
-from .routes import order_router, history_router
+from .routes import order_router, history_router, menu_router
 
 
 @asynccontextmanager
@@ -36,10 +33,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# current_dir = os.path.dirname(os.path.realpath(__file__))
-# frontend_path = os.path.join(current_dir, "..", "frontend")
-# app.mount("/static", StaticFiles(directory=frontend_path), name="static")
-
 app.include_router(user_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(branch_router, prefix="/api/v1")
@@ -50,18 +43,21 @@ app.include_router(size_router, prefix="/api/v1")
 app.include_router(extra_router, prefix="/api/v1")
 app.include_router(order_router, prefix="/api/v1")
 app.include_router(history_router, prefix="/api/v1")
-
-# @app.get("/app", tags=["Frontend"])
-# def serve_frontend():
-#     return FileResponse(os.path.join(frontend_path, "index.html"))
+app.include_router(menu_router, prefix="/api/v1")
 
 
-@app.get("/", tags=["Root"])
+@app.get("/api/health", tags=["Root"])
 def root_check():
     return {
         "status": "online",
         "message": "Welcome to the Point of Sale API. Visit /docs for the Swagger UI.",
     }
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+GUI_DIR = BASE_DIR / "gui"
+
+app.mount("/", StaticFiles(directory=GUI_DIR, html=True), name="gui")
 
 
 if __name__ == "__main__":
@@ -76,4 +72,4 @@ if __name__ == "__main__":
 
 """)
 
-    uvicorn.run(app, port=8000)
+    uvicorn.run("server.main:app", host="127.0.0.1", port=8000, reload=True)
