@@ -1,5 +1,6 @@
+from typing import Optional, List
 from decimal import Decimal
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from .base_schema import AuditSchema
 from .catalog_schema import ProductResponse, SizeResponse, ExtraResponse
 
@@ -26,22 +27,37 @@ class MenuItemCreate(MenuItemBase):
     branch_id: int
     product_id: int
     size_id: int
-    extras: list[MenuItemExtraCreate] = []
+    extras: List[MenuItemExtraCreate] = Field(default_factory=list)
 
 
 class MenuItemUpdate(BaseModel):
-    price: Decimal | None = None
-    is_active: bool | None = None
-    extras: list[MenuItemExtraCreate] | None = None
+    """
+    Partial update for MenuItem.
+    - All fields are optional → true PATCH-style updates
+    - You can now safely change branch, product, or size
+    - Extras are completely replaced when sent
+    """
+
+    branch_id: Optional[int] = Field(None, description="Change branch")
+    product_id: Optional[int] = Field(None, description="Change product")
+    size_id: Optional[int] = Field(None, description="Change size")
+    price: Optional[Decimal] = Field(None, description="New price")
+    is_active: Optional[bool] = Field(None, description="Activate/deactivate")
+    extras: Optional[List[MenuItemExtraCreate]] = Field(
+        None,
+        description="If provided, completely replaces all existing extras. "
+        "Send empty list [] to remove all extras.",
+    )
 
 
 class MenuItemResponse(MenuItemBase, AuditSchema):
     branch_id: int
     product_id: int
     size_id: int
+    # is_active: bool  # ← added for consistency with update
 
 
 class MenuItemDetailResponse(MenuItemResponse):
     product: ProductResponse
     size: SizeResponse
-    menu_items_extras: list[MenuItemExtraResponse] = []
+    menu_items_extras: List[MenuItemExtraResponse] = Field(default_factory=list)
