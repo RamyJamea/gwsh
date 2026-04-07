@@ -165,7 +165,8 @@ const NAV_ADMIN = [
   { section: 'Overview' },
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { section: 'POS' },
-  { id: 'pos', label: 'New Order', icon: '🛒' },
+  // ── New Order is hidden for admins (they are not allowed) ──
+  // { id: 'pos', label: 'New Order', icon: '🛒' },
   { id: 'orders', label: 'Active Orders', icon: '📋' },
   { id: 'tables', label: 'Tables', icon: '🪑' },
   { id: 'history', label: 'Order History', icon: '📜' },
@@ -180,7 +181,6 @@ const NAV_ADMIN = [
   { section: 'Account' },
   { id: 'profile', label: 'Profile', icon: '👤' },
 ];
-
 function buildSidebar() {
   const nav = $('#sidebar-nav');
   const items = isAdmin() ? NAV_ADMIN : NAV_CASHIER;
@@ -201,6 +201,12 @@ function buildSidebar() {
 }
 
 function navigate(route) {
+  // ── SECURITY: Prevent admins from accessing New Order page ──
+  if (route === 'pos' && isAdmin()) {
+    toast('Admins are not allowed to create new orders.', 'warning');
+    route = 'dashboard';           // redirect to safe page
+  }
+
   state.currentRoute = route;
   buildSidebar();
   renderPage();
@@ -249,6 +255,20 @@ async function enterApp() {
 function renderPage() {
   const content = $('#content');
   const route = state.currentRoute;
+
+  // ── BLOCK ADMIN from New Order page even if they force the route ──
+  if (route === 'pos' && isAdmin()) {
+    html(content, `
+      <div class="empty-state" style="margin-top:80px;">
+        <div class="empty-icon" style="font-size:4rem;">🚫</div>
+        <h3>Access Denied</h3>
+        <p>Administrators are not permitted to create new orders.</p>
+        <button class="btn btn-primary" onclick="navigate('dashboard')">Go to Dashboard</button>
+      </div>
+    `);
+    return;
+  }
+
   const pages = {
     dashboard: renderDashboard,
     pos: renderPOS,
@@ -264,11 +284,11 @@ function renderPage() {
     extras: renderExtras,
     'menu-items': renderMenuItems,
   };
+
   const renderer = pages[route];
   if (renderer) renderer(content);
   else html(content, '<div class="empty-state"><div class="empty-icon">🔍</div><p>Page not found</p></div>');
 }
-
 // ── Dashboard ───────────────────────────────────────────────
 async function renderDashboard(el) {
   if (isAdmin()) {
@@ -859,33 +879,89 @@ async function handleHeldCheckout(orderId) {
   });
 }
 
-// ── Add items to held order ───────────────────────────────────────
+// ── NEW/UPDATED: Full extras support for held orders ─────────────────────
 async function addItemToHeldOrderWithExtras(orderId, menuItemId) {
   const mi = state.menuItems.find(m => m.id === menuItemId);
   if (!mi) return;
 
-  // Reuse the same logic as POS
   const hasExtras = !!(mi.menu_items_extras && mi.menu_items_extras.length);
+
   if (!hasExtras) {
-    await addItemToHeldOrder(orderId, menuItemId); // your existing function
+    await addItemToHeldOrder(orderId, menuItemId, []);
     return;
   }
 
-  // For brevity we reuse the same modal flow but call the held endpoint
-  // (you can copy-paste the modal code from addProductWithExtras if you want full parity)
-  toast('Extras not yet supported when adding to held order (simple version used)', 'warning');
-  await addItemToHeldOrder(orderId, menuItemId); // fallback – no extras
+  // Same beautiful modal as POS
+  let extrasHtml = mi.menu_items_extras.map(ex => {
+    const name = ex.name ||
+      (state.extras && state.extras.find(e => e.id === (ex.extra_id || ex.id))
+        ? state.extras.find(e => e.id === (ex.extra_id || ex.id)).name
+        : `Extra #${ex.id}`);
+    return `
+      <label style="display:block;padding:10px 12px;border-bottom:1px solid #eee;cursor:pointer;">
+        <input type="checkbox" class="extra-check" 
+               data-id="${ex.id}" 
+               data-price="${ex.price}" 
+               data-name="${name}">
+        <span style="margin-left:8px;">${name}</span>
+        <span class="text-sm text-muted" style="float:right;">+${formatMoney(ex.price)}</span>
+      </label>`;
+  }).join('');
+
+  showModal(`Add ${mi._productName} to Order #${orderId} — Select Extras`, `
+    <div style="max-height:420px;overflow-y:auto;">
+      ${extrasHtml}
+    </div>
+    <div style="margin-top:20px;display:flex;gap:8px;">
+      <button id="confirm-extras-held-btn" class="btn btn-primary btn-block">Add Item + Extras</button>
+      <button id="skip-extras-held-btn" class="btn btn-outline btn-block">Add Item (No Extras)</button>
+    </div>
+  `);
+
+  setTimeout(() => {
+    const confirmBtn = document.getElementById('confirm-extras-held-btn');
+    const skipBtn = document.getElementById('skip-extras-held-btn');
+
+    confirmBtn.addEventListener('click', () => {
+      const selected = [];
+      document.querySelectorAll('#modal-container .extra-check:checked').forEach(chk => {
+        selected.push({
+          id: parseInt(chk.dataset.id),
+          name: chk.dataset.name,
+          price: parseFloat(chk.dataset.price)
+        });
+      });
+      closeModal();
+      addItemToHeldOrder(orderId, menuItemId, selected);
+    });
+
+    skipBtn.addEventListener('click', () => {
+      closeModal();
+      addItemToHeldOrder(orderId, menuItemId, []);
+    });
+  }, 10);
 }
 
+// ── UPDATED: Add items modal (now shows extras count) ─────────────────────
 async function showAddItemsToOrder(orderId) {
   const bid = state.selectedBranch;
   if (!bid) return toast('Select a branch first', 'warning');
 
   try {
-    // Load menu items once
-    if (!state.menuItems?.length) {
+    // Load menu items + FULL enrichment (names + extras)
+    if (!state.menuItems?.length || !state.menuItems[0].menu_items_extras) {
       state.menuItems = await api.get(`/menu-items/branch/${bid}`);
-      await enrichMenuItems();
+      await enrichMenuItems();                    // product/size names
+
+      // CRITICAL: Load extras for each menu item (same as POS)
+      for (const mi of state.menuItems) {
+        try {
+          const detail = await api.get(`/menu-items/${mi.id}`);
+          mi.menu_items_extras = detail.menu_items_extras || [];
+        } catch (e) {
+          mi.menu_items_extras = [];
+        }
+      }
     }
 
     showModal(`Add Items to Order #${orderId}`, `
@@ -910,13 +986,15 @@ async function showAddItemsToOrder(orderId) {
           <div class="product-name">${mi._productName || 'Item'}</div>
           <div class="product-size">${mi._sizeName || ''}</div>
           <div class="product-price">${formatMoney(mi.price)}</div>
+          ${mi.menu_items_extras && mi.menu_items_extras.length ?
+          `<div class="product-extras">+${mi.menu_items_extras.length} extras</div>` : ''}
         </div>
       `).join('');
 
       grid.querySelectorAll('.product-card').forEach(card => {
         card.addEventListener('click', () => {
           const miId = parseInt(card.dataset.miId);
-          addItemToHeldOrderWithExtras(orderId, miId);   // new helper below
+          addItemToHeldOrderWithExtras(orderId, miId);
         });
       });
     }
@@ -936,7 +1014,8 @@ async function showAddItemsToOrder(orderId) {
   }
 }
 
-async function addItemToHeldOrder(orderId, menuItemId) {
+// ── UPDATED: Backend call now supports extras ─────────────────────
+async function addItemToHeldOrder(orderId, menuItemId, selectedExtras = []) {
   const mi = state.menuItems.find(m => m.id === menuItemId);
   if (!mi) return;
 
@@ -945,20 +1024,22 @@ async function addItemToHeldOrder(orderId, menuItemId) {
       menu_item_id: menuItemId,
       quantity: 1,
       price_at_time: parseFloat(mi.price),
-      extras: []
+      extras: selectedExtras.map(e => ({
+        menu_item_extra_id: e.id,
+        quantity: 1,
+        price_at_time: e.price,
+      })),
     }]
   };
 
   try {
     await api.post(`/orders/${orderId}/items`, addData);
-    toast(`✅ Added ${mi._productName} to order #${orderId}`, 'success');
-    closeModal();
+    toast(`✅ Added ${mi._productName}${selectedExtras.length ? ' + extras' : ''} to order #${orderId}`, 'success');
     if (state.currentRoute === 'orders') renderOrders($('#content'));
   } catch (err) {
     toast(err.message, 'error');
   }
 }
-
 
 // ── Active Orders ───────────────────────────────────────────
 async function renderOrders(el) {
