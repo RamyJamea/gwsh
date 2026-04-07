@@ -322,9 +322,9 @@ async function renderDashboard(el) {
         bid ? api.get(`/orders/?branch_id=${bid}`) : Promise.resolve([]),
         bid ? api.get(`/tables/branch/${bid}`) : Promise.resolve([]),
       ]);
-      const active = orders.filter(o => o.action === 'CREATE' || o.action === 'UPDATE');
+      const active = orders.filter(o => o.action === 'create' || o.action === 'update');
       const avail = tables.filter(t => t.is_available);
-      const revenue = orders.filter(o => o.action === 'PAY').reduce((s, o) => s + parseFloat(o.total_amount || 0), 0);
+      const revenue = orders.filter(o => o.action === 'pay').reduce((s, o) => s + parseFloat(o.total_amount || 0), 0);
       $('#dash-active').textContent = active.length;
       $('#dash-tables').textContent = `${avail.length} / ${tables.length}`;
       $('#dash-revenue').textContent = formatMoney(revenue);
@@ -346,7 +346,12 @@ async function renderDashboard(el) {
 }
 
 function actionBadge(action) {
-  const map = { CREATE: 'info', UPDATE: 'warning', PAY: 'success', CANCEL: 'danger' };
+  const map = {
+    create: 'info',
+    update: 'warning',
+    pay: 'success',
+    cancel: 'danger'
+  };
   return map[action] || 'gray';
 }
 
@@ -630,7 +635,6 @@ async function handleCheckout() {
       <select id="checkout-payment">
         <option value="cash">Cash</option>
         <option value="card">Card</option>
-        <option value="model">Mobile</option>
       </select>
     </div>
     <div class="cart-summary-row total" style="display:flex;justify-content:space-between;font-size:1.1rem;font-weight:700;margin-top:12px;">
@@ -653,6 +657,8 @@ async function handleCheckout() {
         branch_id: bid,
         table_id: state.cartTable,
         total_amount: state.cart.reduce((s, i) => s + i.price * i.quantity, 0),
+        action: "create",           // ← REQUIRED
+        payment_method: null,
         items: state.cart.map(c => ({
           menu_item_id: c.menuItemId,
           quantity: c.quantity,
@@ -696,6 +702,8 @@ async function handleHold() {
       branch_id: bid,
       table_id: state.cartTable,
       total_amount: state.cart.reduce((s, i) => s + i.price * i.quantity, 0),
+      action: "create",           // ← REQUIRED
+      payment_method: null,       // ← not paid yet
       items: state.cart.map(c => ({
         menu_item_id: c.menuItemId,
         quantity: c.quantity,
@@ -736,7 +744,7 @@ async function renderOrders(el) {
   try {
     const orders = await api.get(`/orders/?branch_id=${bid}`);
     state.orders = orders;
-    const active = orders.filter(o => o.action === 'CREATE' || o.action === 'UPDATE');
+    const active = orders.filter(o => o.action === 'create' || o.action === 'update');
     if (!active.length) {
       html($('#orders-list'), '<div class="empty-state"><div class="empty-icon">📋</div><p>No active orders</p></div>');
       return;
@@ -834,7 +842,7 @@ async function showOrderDetail(orderId) {
         <div class="timeline">
           ${historyData.map(h => `
             <div class="timeline-item">
-              <div class="tl-time">${formatDate(h.timestamp)}</div>
+              <div class="tl-time">${formatDate(h.created_at)}</div>
               <div class="tl-action">${h.action}</div>
               <div class="tl-detail">Total at time: ${formatMoney(h.total_amount_at_time)} · Cashier #${h.cashier_id}</div>
             </div>
@@ -958,7 +966,7 @@ async function renderHistory(el) {
   if (!bid) { html($('#history-list'), '<div class="empty-state"><p>Select a branch</p></div>'); return; }
   try {
     const orders = await api.get(`/orders/?branch_id=${bid}`);
-    const completed = orders.filter(o => o.action === 'PAY' || o.action === 'CANCEL');
+    const completed = orders.filter(o => o.action === 'pay' || o.action === 'cancel');
     if (!completed.length) {
       html($('#history-list'), '<div class="empty-state"><div class="empty-icon">📜</div><p>No completed orders</p></div>');
       return;
