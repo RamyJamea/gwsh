@@ -89,8 +89,8 @@ function formatDate(d) {
   return new Date(d).toLocaleString();
 }
 
-function isAdmin() { return state.role === 'ADMIN' || state.role === 'admin'; }
-function isCashier() { return state.role === 'CASHIER' || state.role === 'cashier'; }
+function isAdmin() { return state.role === 'admin' || state.role === 'admin'; }
+function isCashier() { return state.role === 'cashier' || state.role === 'cashier'; }
 
 // ── Auth ────────────────────────────────────────────────────
 async function handleLogin(e) {
@@ -627,9 +627,9 @@ async function handleCheckout() {
     <div class="form-group">
       <label>Payment Method</label>
       <select id="checkout-payment">
-        <option value="CASH">Cash</option>
-        <option value="CARD">Card</option>
-        <option value="MOBILE">Mobile</option>
+        <option value="cash">Cash</option>
+        <option value="card">Card</option>
+        <option value="model">Mobile</option>
       </select>
     </div>
     <div class="cart-summary-row total" style="display:flex;justify-content:space-between;font-size:1.1rem;font-weight:700;margin-top:12px;">
@@ -728,7 +728,7 @@ async function renderOrders(el) {
     el.querySelectorAll('[data-checkout-order]').forEach(btn => {
       btn.addEventListener('click', async () => {
         try {
-          await api.post(`/orders/${btn.dataset.checkoutOrder}/checkout`, { payment_method: 'CASH' });
+          await api.post(`/orders/${btn.dataset.checkoutOrder}/checkout`, { payment_method: 'cash' });
           toast('Order checked out!', 'success');
           renderOrders(el);
         } catch (err) { toast(err.message, 'error'); }
@@ -1116,8 +1116,8 @@ function showUserForm(userId = null) {
       <div class="form-group">
         <label>Role</label>
         <select id="uf-role">
-          <option value="CASHIER" ${user && user.role === 'CASHIER' ? 'selected' : ''}>Cashier</option>
-          <option value="ADMIN" ${user && user.role === 'ADMIN' ? 'selected' : ''}>Admin</option>
+          <option value="cashier" ${user && user.role === 'cashier' ? 'selected' : ''}>Cashier</option>
+          <option value="admin" ${user && user.role === 'admin' ? 'selected' : ''}>Admin</option>
         </select>
       </div>
       ${!isEdit ? `<div class="form-group"><label>Password</label><input type="password" id="uf-password" required></div>` : ''}
