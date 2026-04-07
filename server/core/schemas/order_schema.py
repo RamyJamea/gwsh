@@ -42,7 +42,7 @@ class OrderItemDetailResponse(OrderItemResponse):
 class OrderBase(BaseModel):
     total_amount: Decimal
     action: ActionEnum = ActionEnum.CREATE
-    payment_method: PaymentEnum = PaymentEnum.CASH
+    payment_method: PaymentEnum | None = None
 
 
 class OrderCreate(OrderBase):
