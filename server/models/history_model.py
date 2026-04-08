@@ -9,6 +9,7 @@ from .base_model import Base, AuditMixin
 if TYPE_CHECKING:
     from .order_model import Order
     from .user_model import User
+    from .menu_model import MenuItem, MenuItemExtra
 
 
 class OrderHistory(Base, AuditMixin):
@@ -35,6 +36,7 @@ class OrderHistoryItem(Base, AuditMixin):
     quantity: Mapped[int]
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
+    menu_item: Mapped["MenuItem"] = relationship()
     order_history: Mapped["OrderHistory"] = relationship(
         back_populates="order_history_items"
     )
@@ -53,6 +55,7 @@ class OrderHistoryItemExtra(Base, AuditMixin):
     quantity: Mapped[int]
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
+    menu_item_extra: Mapped["MenuItemExtra"] = relationship()
     order_history_item: Mapped["OrderHistoryItem"] = relationship(
         back_populates="order_item_extras"
     )

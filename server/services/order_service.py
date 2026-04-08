@@ -1,4 +1,3 @@
-from typing import Sequence, TYPE_CHECKING
 from decimal import Decimal
 from sqlalchemy.orm import Session
 from fastapi.exceptions import HTTPException
@@ -6,7 +5,6 @@ from ..core.enums import ActionEnum, PaymentEnum
 from ..core.schemas import OrderCreate, OrderUpdate, OrderItemCreate
 from ..models import Order, OrderHistory
 from ..repositories import *
-from ..models import Order, OrderHistory
 from .base_service import BaseService
 from .history_service import OrderHistoryService
 
@@ -279,3 +277,11 @@ class OrderService(BaseService):
         self.history_service.create_snapshot(order, cashier_id, ActionEnum.UPDATE)
         self.session.commit()
         return order
+
+    def export_detailed_history_to_excel(self, order_id: int) -> bytes:
+        """Public API for exporting detailed order history as Excel."""
+        return self.history_service.export_detailed_history_to_excel(order_id)
+
+    def export_detailed_history_for_branch(self, branch_id: int) -> bytes:
+        """Public API for exporting detailed history of ALL orders in a branch as Excel."""
+        return self.history_service.export_detailed_history_for_branch(branch_id)
