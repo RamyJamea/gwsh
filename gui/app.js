@@ -3,7 +3,7 @@
    ============================================================ */
 
 // ── Config ──────────────────────────────────────────────────
-const API = 'https://dominica-elusive-danial.ngrok-free.dev/api/v1';
+const API = 'http://127.0.0.1:8000/api/v1';
 
 // ── State ───────────────────────────────────────────────────
 const state = {
@@ -26,6 +26,8 @@ const state = {
   completedOrders: [],
   historyPage: 1,
   historyPageSize: 10,
+  currentAdminTab: 'branches',
+  posRenderVersion: 0,
 };
 
 // ── API Service ─────────────────────────────────────────────
@@ -155,7 +157,18 @@ function formatDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleString();
 }
-
+// ── NEW: Free table when order is canceled or completed ─────────────────────
+async function finalizeOrder(orderId) {
+  try {
+    const order = await api.get(`/orders/${orderId}`);
+    if (order && order.table_id) {
+      await api.patch(`/tables/${order.table_id}`, { is_available: true });
+    }
+  } catch (err) {
+    console.warn('Could not free table after finalize:', err.message);
+    // silent fail – do not block the UI
+  }
+}
 function isAdmin() { return state.role === 'admin' || state.role === 'admin'; }
 function isCashier() { return state.role === 'cashier' || state.role === 'cashier'; }
 
@@ -218,33 +231,28 @@ const NAV_CASHIER = [
   { section: 'Workspace' },
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'pos', label: 'New Order', icon: '🛒' },
-  { id: 'orders', label: 'Active Orders', icon: '📋' },
-  { id: 'tables', label: 'Tables', icon: '🪑' },
+  // ── Active Orders screen removed for cashiers ──
+  // They now manage ALL orders (new + existing) directly from the floor screen
   { id: 'history', label: 'Order History', icon: '📜' },
   { section: 'Account' },
   { id: 'profile', label: 'Profile', icon: '👤' },
 ];
 
+
 const NAV_ADMIN = [
   { section: 'Overview' },
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { section: 'POS' },
-  // ── New Order is hidden for admins (they are not allowed) ──
-  // { id: 'pos', label: 'New Order', icon: '🛒' },
   { id: 'orders', label: 'Active Orders', icon: '📋' },
   { id: 'tables', label: 'Tables', icon: '🪑' },
   { id: 'history', label: 'Order History', icon: '📜' },
   { section: 'Management' },
-  { id: 'branches', label: 'Branches', icon: '🏢' },
-  { id: 'users', label: 'Users', icon: '👥' },
-  { id: 'categories', label: 'Categories', icon: '📁' },
-  { id: 'products', label: 'Products', icon: '📦' },
-  { id: 'sizes', label: 'Sizes', icon: '📏' },
-  { id: 'extras', label: 'Extras', icon: '✨' },
-  { id: 'menu-items', label: 'Menu Items', icon: '🍽' },
+  { id: 'management', label: 'Management', icon: '⚙️' },   // ← new single page
   { section: 'Account' },
   { id: 'profile', label: 'Profile', icon: '👤' },
 ];
+
+
 function buildSidebar() {
   const nav = $('#sidebar-nav');
   const items = isAdmin() ? NAV_ADMIN : NAV_CASHIER;
@@ -340,13 +348,7 @@ function renderPage() {
     tables: renderTables,
     history: renderHistory,
     profile: renderProfile,
-    branches: renderBranches,
-    users: renderUsers,
-    categories: renderCategories,
-    products: renderProducts,
-    sizes: renderSizes,
-    extras: renderExtras,
-    'menu-items': renderMenuItems,
+    management: renderManagement,
   };
 
   const renderer = pages[route];
@@ -448,74 +450,110 @@ function getItemTotal(item) {
   return item.quantity * (item.price + extraSum);
 }
 // ── POS ─────────────────────────────────────────────────────
+
 async function renderPOS(el) {
-  html(el, `<div class="pos-layout">
-    <div class="pos-categories" id="pos-cats"><div class="loading-center"><div class="spinner"></div></div></div>
-    <div class="pos-products">
-      <div class="pos-search"><input type="text" id="pos-search-input" placeholder="Search products…"></div>
-      <div id="pos-product-grid" class="product-grid"><div class="loading-center"><div class="spinner"></div></div></div>
-    </div>
-    <div class="pos-cart">
-      <div class="cart-header">Current Order</div>
-      <div class="cart-table-info" id="cart-table-info">
-        <span id="cart-table-label">No table selected</span>
-        <button class="btn btn-sm btn-outline" id="cart-pick-table">Pick Table</button>
+  html(el, `
+    <div id="pos-container">
+      <!-- FLOOR VIEW: Step 1 -->
+      <div id="pos-floor-view">
+        <div class="page-header">
+          <h2>New Order</h2>
+          <p class="text-muted">Select a table or takeaway to begin</p>
+        </div>
+        <div id="floor-grid" class="table-grid"></div>
+        <div style="text-align:center; margin-top: 40px;">
+          <button id="pos-takeaway-btn" class="btn btn-lg btn-outline" style="min-width: 320px; padding: 24px 32px; font-size: 1.3rem;">
+            <span style="font-size:2rem; display:block; margin-bottom:8px;">🛍️</span>
+            Takeaway / Walk-in
+          </button>
+        </div>
       </div>
-      <div class="cart-items" id="cart-items"></div>
-      <div class="cart-summary" id="cart-summary"></div>
-      <div class="cart-actions">
-        <button class="btn btn-success btn-lg" id="cart-checkout-btn" disabled>Checkout</button>
-        <div class="flex gap-sm">
-          <button class="btn btn-outline btn-sm w-full" id="cart-hold-btn">Hold</button>
-          <button class="btn btn-danger btn-sm w-full" id="cart-clear-btn">Clear</button>
+
+      <!-- MENU VIEW: Step 2 (Products + Cart) -->
+      <div id="pos-menu-view" class="hidden">
+        <div class="pos-layout">
+          <div class="pos-categories" id="pos-cats"><div class="loading-center"><div class="spinner"></div></div></div>
+          <div class="pos-products">
+            <div class="pos-search"><input type="text" id="pos-search-input" placeholder="Search products…"></div>
+            <div id="pos-product-grid" class="product-grid"><div class="loading-center"><div class="spinner"></div></div></div>
+          </div>
+          <div class="pos-cart">
+            <div class="cart-header">Current Order</div>
+            <div class="cart-table-info" id="cart-table-info">
+              <span id="cart-table-label">No table selected</span>
+              <button class="btn btn-sm btn-outline" id="cart-pick-table">Pick Table</button>
+            </div>
+            <div class="cart-items" id="cart-items"></div>
+            <div class="cart-summary" id="cart-summary"></div>
+            <div class="cart-actions">
+              <button class="btn btn-success btn-lg" id="cart-checkout-btn" disabled>Checkout</button>
+              <div class="flex gap-sm">
+                <button class="btn btn-outline btn-sm w-full" id="cart-hold-btn">Hold</button>
+                <button class="btn btn-danger btn-sm w-full" id="cart-clear-btn">Clear</button>
+              </div>
+            </div>
+          </div>
+          <div class="pos-bottom">
+            <span class="text-sm text-muted">Items: <strong id="pos-total-items">0</strong></span>
+            <span class="text-sm text-muted">Subtotal: <strong class="tabular-nums" id="pos-subtotal">0.00</strong></span>
+            <span class="text-sm font-bold">Total: <strong class="tabular-nums" id="pos-total">0.00</strong></span>
+          </div>
         </div>
       </div>
     </div>
-    <div class="pos-bottom">
-      <span class="text-sm text-muted">Items: <strong id="pos-total-items">0</strong></span>
-      <span class="text-sm text-muted">Subtotal: <strong class="tabular-nums" id="pos-subtotal">0.00</strong></span>
-      <span class="text-sm font-bold">Total: <strong class="tabular-nums" id="pos-total">0.00</strong></span>
-      <span class="mt-auto"></span>
-      <button class="btn btn-sm btn-outline" id="pos-walkin-btn">Walk-in / Takeaway</button>
-    </div>
-  </div>`);
+  `);
 
   const bid = state.selectedBranch;
-
-  // Load data + FULL enrichment with extras
-  try {
-    const [cats, items] = await Promise.all([
-      api.get('/categories/'),
-      bid ? api.get(`/menu-items/branch/${bid}`) : api.get('/menu-items/'),
-    ]);
-
-    state.categories = cats;
-    state.menuItems = items;
-
-    // === CRITICAL FIX: Load extras list + full menu item details (with menu_items_extras) ===
-    if (!state.extras?.length) {
-      try {
-        state.extras = await api.get('/extras/');
-      } catch { state.extras = []; }
-    }
-
-    // Enrich every menu item with its extras (the list endpoint doesn't include them)
-    for (const mi of state.menuItems) {
-      try {
-        const detail = await api.get(`/menu-items/${mi.id}`);
-        mi.menu_items_extras = detail.menu_items_extras || [];
-      } catch (e) {
-        mi.menu_items_extras = [];
-      }
-    }
-
-    await enrichMenuItems();           // product/size names
-    renderPOSCategories(null);
-    renderPOSProducts(state.menuItems);
-  } catch (err) {
-    html($('#pos-product-grid'), `<div class="error-message">${err.message}</div>`);
+  if (!bid) {
+    html(el, '<div class="empty-state"><p>Select a branch first</p></div>');
+    return;
   }
 
+  /** FIXED: Race-condition protection */
+  const currentVersion = ++state.posRenderVersion;
+
+  try {
+    const [cats, itemsRes] = await Promise.all([
+      api.get('/categories/'),
+      api.get(`/menu-items/branch/${bid}`),
+    ]);
+
+    if (state.posRenderVersion !== currentVersion) return; // newer render started
+
+    state.categories = cats;
+    state.menuItems = itemsRes;
+
+    if (!state.extras?.length) {
+      state.extras = await api.get('/extras/');
+      if (state.posRenderVersion !== currentVersion) return;
+    }
+
+    // Parallel detail loading (much faster)
+    const detailPromises = state.menuItems.map(mi =>
+      api.get(`/menu-items/${mi.id}`).catch(() => ({ menu_items_extras: [] }))
+    );
+    const details = await Promise.all(detailPromises);
+
+    if (state.posRenderVersion !== currentVersion) return;
+
+    for (let i = 0; i < state.menuItems.length; i++) {
+      state.menuItems[i].menu_items_extras = details[i].menu_items_extras || [];
+    }
+
+    await enrichMenuItems();
+
+    if (state.posRenderVersion !== currentVersion) return;
+
+    initializePOSMenu();
+    setupPOSFloor(bid);
+  } catch (err) {
+    console.error(err);
+    html(el, `<div class="error-message">Failed to load menu: ${err.message}</div>`);
+  }
+}
+
+// ── NEW: Reorganized New Order helpers ─────────────────────────────
+function initializePOSMenu() {
   // Search
   $('#pos-search-input').addEventListener('input', (e) => {
     const q = e.target.value.toLowerCase();
@@ -526,14 +564,14 @@ async function renderPOS(el) {
     renderPOSProducts(filtered);
   });
 
-  // Table picker
-  $('#cart-pick-table').addEventListener('click', showTablePicker);
-  $('#pos-walkin-btn').addEventListener('click', () => {
-    state.cartTable = null;
-    $('#cart-table-label').textContent = 'Walk-in / Takeaway';
-  });
+  // Change Table button (repurposed)
+  const changeBtn = $('#cart-pick-table');
+  if (changeBtn) {
+    changeBtn.textContent = 'Change Table';
+    changeBtn.addEventListener('click', goBackToFloor);
+  }
 
-  // Checkout / Hold / Clear
+  // Cart actions
   $('#cart-checkout-btn').addEventListener('click', handleCheckout);
   $('#cart-hold-btn').addEventListener('click', handleHold);
   $('#cart-clear-btn').addEventListener('click', () => {
@@ -541,10 +579,116 @@ async function renderPOS(el) {
     state.cartTable = null;
     renderCart();
     $('#cart-table-label').textContent = 'No table selected';
+    goBackToFloor();   // return to floor after clear
   });
 
+  // Initial render
+  renderPOSCategories(null);
+  renderPOSProducts(state.menuItems);
   renderCart();
 }
+
+
+// ── UPDATED: Occupied tables are now clickable → open existing order ──
+async function setupPOSFloor(bid) {
+  const floorGrid = $('#floor-grid');
+
+  try {
+    // Fetch tables + active orders in parallel
+    const [tablesRes, ordersRes] = await Promise.all([
+      api.get(`/tables/branch/${bid}`),
+      api.get(`/orders/?branch_id=${bid}`)
+    ]);
+
+    const tables = tablesRes || [];
+    const orders = ordersRes || [];
+
+    // Map table_id → active order (create or update)
+    const activeOrders = orders.filter(o => o.action === 'create' || o.action === 'update');
+    const tableOrderMap = {};
+    activeOrders.forEach(o => {
+      if (o.table_id) tableOrderMap[o.table_id] = o;
+    });
+
+    let h = '';
+    if (tables.length) {
+      h = tables.map(t => {
+        const order = tableOrderMap[t.id];
+        const isOccupied = !t.is_available || !!order;
+        const statusClass = isOccupied ? 'occupied' : 'available';
+        const statusText = isOccupied ? 'Occupied' : 'Available';
+        const statusBadge = `<span class="badge ${isOccupied ? 'badge-danger' : 'badge-success'}">${statusText}</span>`;
+
+        let footerHtml = '';
+        if (!isOccupied) {
+          footerHtml = `<div style="margin-top:12px;font-size:0.9rem;color:var(--primary);">Start New Order →</div>`;
+        } else if (order) {
+          footerHtml = `<div style="margin-top:12px;font-size:0.9rem;color:var(--primary);font-weight:600;">Order #${order.id} • Manage →</div>`;
+        } else {
+          footerHtml = `<div style="margin-top:12px;font-size:0.9rem;color:#999;">Occupied</div>`;
+        }
+
+        return `
+          <div class="table-card ${statusClass}" data-tid="${t.id}" style="cursor:pointer;">
+            <div class="table-number">T${t.id}</div>
+            <div class="table-chairs">${t.num_chairs} chairs</div>
+            ${statusBadge}
+            ${footerHtml}
+          </div>
+        `;
+      }).join('');
+    } else {
+      h = `<div class="empty-state"><div class="empty-icon">🪑</div><p>No tables configured for this branch</p></div>`;
+    }
+
+    html(floorGrid, h);
+
+    // ALL tables are now clickable
+    floorGrid.querySelectorAll('.table-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const tid = parseInt(card.dataset.tid);
+        const order = tableOrderMap[tid];
+
+        if (order) {
+          // Occupied table → open existing order (view + add/remove/checkout/cancel)
+          showOrderDetail(order.id);
+        } else {
+          // Available table → start new order (existing behavior)
+          state.cartTable = tid;
+          showPOSMenuView();
+        }
+      });
+    });
+  } catch (err) {
+    html(floorGrid, `<div class="error-message">Failed to load tables: ${err.message}</div>`);
+  }
+
+  // Takeaway button (unchanged)
+  const tbBtn = $('#pos-takeaway-btn');
+  if (tbBtn) {
+    tbBtn.addEventListener('click', () => {
+      state.cartTable = null;
+      showPOSMenuView();
+    });
+  }
+}
+
+
+function showPOSMenuView() {
+  hide($('#pos-floor-view'));
+  show($('#pos-menu-view'));
+  const labelEl = $('#cart-table-label');
+  if (labelEl) {
+    labelEl.textContent = state.cartTable ? `Table T${state.cartTable}` : 'Walk-in / Takeaway';
+  }
+}
+
+function goBackToFloor() {
+  hide($('#pos-menu-view'));
+  show($('#pos-floor-view'));
+}
+
+
 let _productCache = {};
 let _sizeCache = {};
 
@@ -613,21 +757,66 @@ function renderPOSProducts(items) {
     html(grid, '<div class="empty-state"><div class="empty-icon">🍽</div><p>No items found</p></div>');
     return;
   }
-  html(grid, items.map(mi => `
-    <div class="product-card" data-mi-id="${mi.id}">
-      <div class="product-name">${mi._productName || 'Item'}</div>
-      <div class="product-size">${mi._sizeName || ''}</div>
-      <div class="product-price">${formatMoney(mi.price)}</div>
-      ${mi.menu_items_extras && mi.menu_items_extras.length ? `<div class="product-extras">+${mi.menu_items_extras.length} extras</div>` : ''}
-    </div>
-  `).join(''));
+
+  // ── Group by product (product name appears only once) ─────────────────────
+  const productGroups = {};
+  items.forEach(mi => {
+    const pid = mi.product_id;
+    if (!productGroups[pid]) {
+      productGroups[pid] = {
+        productId: pid,
+        productName: mi._productName,
+        sizes: []
+      };
+    }
+    productGroups[pid].sizes.push({
+      menuItemId: mi.id,
+      sizeName: mi._sizeName,
+      price: mi.price,
+      menuItemExtras: mi.menu_items_extras || []
+    });
+  });
+
+  const grouped = Object.values(productGroups);
+
+  let h = '';
+  for (const group of grouped) {
+    const hasMultiple = group.sizes.length > 1;
+    const first = group.sizes[0];
+    const anyExtras = group.sizes.some(s => s.menuItemExtras.length > 0);
+
+    h += `
+      <div class="product-card" 
+           data-product-id="${group.productId}"
+           ${hasMultiple ? 'data-multiple="true"' : `data-mi-id="${first.menuItemId}"`}>
+        <div class="product-name">${group.productName}</div>
+        <div class="product-size">
+          ${hasMultiple ? 'Multiple sizes • Select' : first.sizeName}
+        </div>
+        <div class="product-price">
+          ${formatMoney(first.price)}${hasMultiple ? ' and up' : ''}
+        </div>
+        ${anyExtras ? `<div class="product-extras">+extras available</div>` : ''}
+      </div>
+    `;
+  }
+
+  html(grid, h);
+
+  // ── Click handlers ───────────────────────────────────────────────────────
   grid.querySelectorAll('.product-card').forEach(card => {
     card.addEventListener('click', () => {
-      addProductWithExtras(parseInt(card.dataset.miId));
+      const multiple = card.dataset.multiple === 'true';
+      if (multiple) {
+        const prodId = parseInt(card.dataset.productId);
+        showSizeSelectionModal(prodId);
+      } else {
+        const miId = parseInt(card.dataset.miId);
+        addProductWithExtras(miId);
+      }
     });
   });
 }
-
 // ── NEW: Add item with optional extras selector ─────────────────────
 async function addProductWithExtras(menuItemId) {
   const mi = state.menuItems.find(m => m.id === menuItemId);
@@ -691,6 +880,44 @@ async function addProductWithExtras(menuItemId) {
     });
   }, 10);
 }
+
+
+// ── NEW: Size selection modal (called only when product has multiple sizes) ──
+function showSizeSelectionModal(productId) {
+  const mis = state.menuItems.filter(mi => mi.product_id === productId);
+  if (!mis.length) return;
+
+  let sizesHtml = mis.map(mi => {
+    const extrasCount = mi.menu_items_extras ? mi.menu_items_extras.length : 0;
+    return `
+      <button class="btn btn-outline size-select-btn w-full" 
+              data-mi-id="${mi.id}"
+              style="justify-content:space-between; margin-bottom:8px; padding:16px; text-align:left;">
+        <span style="font-weight:600;">${mi._sizeName}</span>
+        <span class="tabular-nums">${formatMoney(mi.price)}</span>
+        ${extrasCount ? `<span class="text-sm text-muted ml-auto">+${extrasCount} extras</span>` : ''}
+      </button>
+    `;
+  }).join('');
+
+  showModal(`Select size for ${mis[0]._productName}`, `
+    <div style="max-height:400px; overflow-y:auto; padding:8px;">
+      ${sizesHtml}
+    </div>
+  `);
+
+  // Attach listeners after modal is rendered
+  setTimeout(() => {
+    document.querySelectorAll('#modal-container .size-select-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const miId = parseInt(btn.dataset.miId);
+        closeModal();
+        addProductWithExtras(miId);
+      });
+    });
+  }, 10);
+}
+
 
 // Helper: actually add to cart (used by both paths)
 function addItemToCart(mi, selectedExtras) {
@@ -773,34 +1000,7 @@ function renderCart() {
   if ($('#pos-subtotal')) $('#pos-subtotal').textContent = formatMoney(subtotal);
   if ($('#pos-total')) $('#pos-total').textContent = formatMoney(total);
 }
-async function showTablePicker() {
-  const bid = state.selectedBranch;
-  if (!bid) { toast('Select a branch first', 'warning'); return; }
-  try {
-    const tables = await api.get(`/tables/branch/${bid}/available`);
-    showModal('Select Table', `
-      <div class="table-grid">
-        ${tables.map(t => `
-          <div class="table-card available" data-tid="${t.id}">
-            <div class="table-number">T${t.id}</div>
-            <div class="table-chairs">${t.num_chairs} chairs</div>
-          </div>
-        `).join('')}
-        ${!tables.length ? '<div class="empty-state"><p>No available tables</p></div>' : ''}
-      </div>
-    `);
-    $$('#modal-container .table-card').forEach(card => {
-      card.addEventListener('click', () => {
-        state.cartTable = parseInt(card.dataset.tid);
-        $('#cart-table-label').textContent = `Table T${state.cartTable}`;
-        closeModal();
-        toast('Table selected', 'success');
-      });
-    });
-  } catch (err) {
-    toast(err.message, 'error');
-  }
-}
+
 
 async function handleCheckout() {
   if (!state.cart.length) return;
@@ -809,7 +1009,6 @@ async function handleCheckout() {
 
   const totalWithExtras = state.cart.reduce((s, i) => s + getItemTotal(i), 0);
 
-  // Show payment method dialog
   showModal('Checkout', `
     <div class="form-group">
       <label>Payment Method</label>
@@ -819,7 +1018,6 @@ async function handleCheckout() {
       </select>
     </div>
 
-    <!-- FIXED: Now shows correct total including extras -->
     <div class="cart-summary-row total" style="display:flex;justify-content:space-between;font-size:1.1rem;font-weight:700;margin-top:12px;padding:12px;background:#f8f9fa;border-radius:8px;">
       <span>Total</span>
       <span class="tabular-nums">${formatMoney(totalWithExtras)}</span>
@@ -835,7 +1033,6 @@ async function handleCheckout() {
   $('#confirm-checkout').addEventListener('click', async () => {
     const payment = $('#checkout-payment').value;
     try {
-      // 1. Create order (already correct)
       const orderData = {
         cashier_id: state.user.id,
         branch_id: bid,
@@ -856,19 +1053,23 @@ async function handleCheckout() {
       };
       const order = await api.post('/orders/', orderData);
 
-      // 2. Checkout
       await api.post(`/orders/${order.id}/checkout`, { payment_method: payment });
+
+      // ── NEW: Free the table after successful checkout ──
+      await finalizeOrder(order.id);
 
       state.cart = [];
       state.cartTable = null;
       closeModal();
       toast('Order completed successfully!', 'success');
-      renderPOS($('#content'));
+      renderPOS($('#content'));   // refreshes floor view
     } catch (err) {
       toast(err.message, 'error');
     }
   });
 }
+
+
 async function handleHold() {
   if (!state.cart.length) return;
 
@@ -916,48 +1117,66 @@ async function handleHold() {
 // ── Active Orders ───────────────────────────────────────────
 
 // ── Checkout held order with payment selector ─────────────────────
+// Improved checkout modal
 async function handleHeldCheckout(orderId) {
   showModal(`Checkout Order #${orderId}`, `
-    <div class="form-group">
-      <label>Payment Method</label>
-      <select id="held-checkout-payment">
-        <option value="cash">Cash</option>
-        <option value="card">Card</option>
-      </select>
-    </div>
-    <div style="margin-top:20px;display:flex;gap:8px;">
-      <button class="btn btn-success btn-lg w-full" id="confirm-held-checkout">Confirm & Pay</button>
-      <button class="btn btn-outline" id="cancel-held-checkout">Cancel</button>
+    <div style="padding:24px;">
+      <div class="form-group">
+        <label style="font-weight:600;">Payment Method</label>
+        <select id="held-checkout-payment" style="width:100%; padding:12px; border-radius:8px; font-size:1.1rem;">
+          <option value="cash">💵 Cash</option>
+          <option value="card">💳 Card</option>
+        </select>
+      </div>
+
+      <div style="margin-top:24px; padding:16px; background:#f0fdf4; border-radius:12px; text-align:center;">
+        <div class="text-muted">Total to pay</div>
+        <div style="font-size:2rem; font-weight:700;" id="checkout-total">—</div>
+      </div>
+
+      <div style="margin-top:28px; display:flex; gap:12px;">
+        <button class="btn btn-success btn-lg w-full" id="confirm-held-checkout">✅ Confirm & Complete Order</button>
+        <button class="btn btn-outline btn-lg w-full" id="cancel-held-checkout">Cancel</button>
+      </div>
     </div>
   `);
+
+  try {
+    const order = await api.get(`/orders/${orderId}`);
+    $('#checkout-total').textContent = formatMoney(order.total_amount);
+  } catch { }
 
   $('#cancel-held-checkout').addEventListener('click', closeModal);
   $('#confirm-held-checkout').addEventListener('click', async () => {
     const payment = $('#held-checkout-payment').value;
     try {
       await api.post(`/orders/${orderId}/checkout`, { payment_method: payment });
+
+      // ── NEW: Free the table after successful checkout ──
+      await finalizeOrder(orderId);
+
       closeModal();
-      toast('Order checked out successfully!', 'success');
-      if (state.currentRoute === 'orders') renderOrders($('#content'));
+      closeDrawer();
+      toast('✅ Order paid successfully!', 'success');
+      renderPOS($('#content'));   // refreshes floor view
     } catch (err) {
       toast(err.message, 'error');
     }
   });
 }
 
-// ── NEW/UPDATED: Full extras support for held orders ─────────────────────
-async function addItemToHeldOrderWithExtras(orderId, menuItemId) {
+
+async function addItemToHeldOrderWithExtras(orderId, menuItemId, onSuccess = null) {
   const mi = state.menuItems.find(m => m.id === menuItemId);
   if (!mi) return;
 
   const hasExtras = !!(mi.menu_items_extras && mi.menu_items_extras.length);
 
   if (!hasExtras) {
-    await addItemToHeldOrder(orderId, menuItemId, []);
+    await addItemToHeldOrder(orderId, menuItemId, [], onSuccess);
     return;
   }
 
-  // Same beautiful modal as POS
   let extrasHtml = mi.menu_items_extras.map(ex => {
     const name = ex.name ||
       (state.extras && state.extras.find(e => e.id === (ex.extra_id || ex.id))
@@ -991,35 +1210,62 @@ async function addItemToHeldOrderWithExtras(orderId, menuItemId) {
     confirmBtn.addEventListener('click', () => {
       const selected = [];
       document.querySelectorAll('#modal-container .extra-check:checked').forEach(chk => {
-        selected.push({
-          id: parseInt(chk.dataset.id),
-          name: chk.dataset.name,
-          price: parseFloat(chk.dataset.price)
-        });
+        selected.push({ id: parseInt(chk.dataset.id), name: chk.dataset.name, price: parseFloat(chk.dataset.price) });
       });
       closeModal();
-      addItemToHeldOrder(orderId, menuItemId, selected);
+      addItemToHeldOrder(orderId, menuItemId, selected, onSuccess);
     });
 
     skipBtn.addEventListener('click', () => {
       closeModal();
-      addItemToHeldOrder(orderId, menuItemId, []);
+      addItemToHeldOrder(orderId, menuItemId, [], onSuccess);
     });
   }, 10);
 }
 
-// ── UPDATED: Add items modal (now shows extras count) ─────────────────────
-async function showAddItemsToOrder(orderId) {
+
+// ── IMPROVED: In-place refresh (no drawer close/reopen) + confirm on zero quantity ──
+async function updateOrderItemQuantity(orderId, orderItemId, newQty) {
+  if (newQty < 1) {
+    const confirmed = await confirmAction(
+      'Remove Item',
+      'Set quantity to 0? This will remove the item from the order.',
+      { danger: true }
+    );
+    if (!confirmed) return;
+    await removeOrderItem(orderId, orderItemId);
+    return;
+  }
+
+  try {
+    await api.patch(`/orders/${orderId}/items/${orderItemId}`, { quantity: newQty });
+    toast('✅ Quantity updated', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function removeOrderItem(orderId, orderItemId) {
+  try {
+    await api.del(`/orders/${orderId}/items/${orderItemId}`);
+    toast('✅ Item removed', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+
+
+
+async function showAddItemsToOrder(orderId, onSuccess = null) {
   const bid = state.selectedBranch;
   if (!bid) return toast('Select a branch first', 'warning');
 
   try {
-    // Load menu items + FULL enrichment (names + extras)
-    if (!state.menuItems?.length || !state.menuItems[0].menu_items_extras) {
+    if (!state.menuItems?.length || !state.menuItems[0]?.menu_items_extras) {
       state.menuItems = await api.get(`/menu-items/branch/${bid}`);
-      await enrichMenuItems();                    // product/size names
+      await enrichMenuItems();
 
-      // CRITICAL: Load extras for each menu item (same as POS)
       for (const mi of state.menuItems) {
         try {
           const detail = await api.get(`/menu-items/${mi.id}`);
@@ -1060,7 +1306,8 @@ async function showAddItemsToOrder(orderId) {
       grid.querySelectorAll('.product-card').forEach(card => {
         card.addEventListener('click', () => {
           const miId = parseInt(card.dataset.miId);
-          addItemToHeldOrderWithExtras(orderId, miId);
+          // Now correctly passes the callback
+          addItemToHeldOrderWithExtras(orderId, miId, onSuccess);
         });
       });
     }
@@ -1080,11 +1327,10 @@ async function showAddItemsToOrder(orderId) {
   }
 }
 
-// ── UPDATED: Backend call now supports extras ─────────────────────
-async function addItemToHeldOrder(orderId, menuItemId, selectedExtras = []) {
+
+async function addItemToHeldOrder(orderId, menuItemId, selectedExtras = [], onSuccess = null) {
   const mi = state.menuItems.find(m => m.id === menuItemId);
   if (!mi) return;
-
   const addData = {
     items: [{
       menu_item_id: menuItemId,
@@ -1097,11 +1343,10 @@ async function addItemToHeldOrder(orderId, menuItemId, selectedExtras = []) {
       })),
     }]
   };
-
   try {
     await api.post(`/orders/${orderId}/items`, addData);
-    // toast(`✅ Added ${mi._productName}${selectedExtras.length ? ' + extras' : ''} to order #${orderId}`, 'success');
-    if (state.currentRoute === 'orders') renderOrders($('#content'));
+    if (onSuccess) onSuccess();
+    else if (state.currentRoute === 'orders') renderOrders($('#content'));
   } catch (err) {
     toast(err.message, 'error');
   }
@@ -1183,7 +1428,7 @@ async function renderOrders(el) {
 
         try {
           await api.post(`/orders/${btn.dataset.cancelOrder}/cancel`, {});
-          // toast('Order cancelled', 'warning');
+          await finalizeOrder(parseInt(btn.dataset.cancelOrder));   // ← NEW
           renderOrders(el);
         } catch (err) {
           toast(err.message, 'error');
@@ -1196,20 +1441,46 @@ async function renderOrders(el) {
 
   $('#refresh-orders').addEventListener('click', () => renderOrders(el));
 }
-// ── UPDATED showOrderDetail (added Excel download button inside the drawer) ──
+
+
+
 async function showOrderDetail(orderId) {
   try {
-    const order = await api.get(`/orders/${orderId}`);
-    const historyData = await api.get(`/history/orders/${orderId}`).catch(() => []);
+    const [order, historyData] = await Promise.all([
+      api.get(`/orders/${orderId}`),
+      api.get(`/history/orders/${orderId}`).catch(() => [])
+    ]);
 
-    openDrawer(`Order #${orderId}`, `
+    const isActive = order.action === 'create' || order.action === 'update';
+    const canEdit = isCashier() && isActive;
+
+    // ── MODERN ACTION TABS (replaces the old button bar) ─────────────────────
+    let actionsHtml = '';
+    if (canEdit) {
+      actionsHtml = `
+        <div class="action-tabs" style="margin:24px 0 28px; display:flex; gap:8px; background:#f8f9fa; padding:8px; border-radius:9999px; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div id="detail-add-items" class="action-tab" style="flex:1; padding:16px 24px; border-radius:9999px; text-align:center; font-weight:600; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:all 0.2s;">
+            Add
+          </div>
+          <div id="detail-checkout" class="action-tab" style="flex:1; padding:16px 24px; border-radius:9999px; text-align:center; font-weight:600; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:all 0.2s;">
+            Checkout
+          </div>
+          <div id="detail-cancel" class="action-tab danger" style="flex:1; padding:16px 24px; border-radius:9999px; text-align:center; font-weight:600; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:all 0.2s; color:#dc3545;">
+            Cancel
+          </div>
+        </div>`;
+    }
+
+    openDrawer(`Order #${orderId} — ${isActive ? 'Active' : 'Completed'}`, `
       <div class="flex justify-between items-center mb-4">
         <h3 class="mb-0">Order #${orderId}</h3>
         ${isAdmin() ? `
         <button id="drawer-export-excel" class="btn btn-success">
-          📥 Download Detailed History (Excel)
+          📥 Export History (Excel)
         </button>` : ''}
       </div>
+
+      ${actionsHtml}
 
       <div class="tabs" id="order-tabs">
         <div class="tab-item active" data-tab="summary">Summary</div>
@@ -1217,28 +1488,139 @@ async function showOrderDetail(orderId) {
         <div class="tab-item" data-tab="timeline">History</div>
       </div>
 
-      <!-- rest of your existing tab content (unchanged) -->
-      <div class="tab-content active" id="tab-summary"> ... </div>
-      <div class="tab-content" id="tab-items"> ... </div>
-      <div class="tab-content" id="tab-timeline"> ... </div>
+      <!-- SUMMARY -->
+      <div class="tab-content active" id="tab-summary">
+        <div class="card">
+          <div class="card-body">
+            <p><strong>Table:</strong> ${order.table_id ? `T${order.table_id}` : 'Walk-in / Takeaway'}</p>
+            <p><strong>Status:</strong> <span class="badge badge-${actionBadge(order.action)}">${order.action}</span></p>
+            <p><strong>Payment:</strong> ${order.payment_method || '—'}</p>
+            <p><strong>Total:</strong> <span class="tabular-nums font-bold">${formatMoney(order.total_amount)}</span></p>
+            <p><strong>Created:</strong> ${formatDate(order.created_at)}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ITEMS -->
+      <div class="tab-content" id="tab-items">
+        ${order.order_items && order.order_items.length ? `
+          <div class="cart-items" style="max-height:420px; overflow-y:auto;">
+            ${order.order_items.map(item => `
+              <div class="cart-item" data-order-item-id="${item.id}">
+                <div class="cart-item-info">
+                  <div class="cart-item-name">${item.menu_item?.product?.name || item.menu_item?.name || 'Item'}</div>
+                  <div class="cart-item-extras">
+                    ${item.menu_item?.size?.name || ''} 
+                    ${item.order_item_extras?.length ? '· ' + item.order_item_extras.map(e => e.name || `Extra #${e.menu_item_extra_id}`).join(', ') : ''}
+                  </div>
+                </div>
+                <div class="cart-item-qty">
+                  <button class="qty-btn dec" data-order-item-id="${item.id}">−</button>
+                  <span>${item.quantity}</span>
+                  <button class="qty-btn inc" data-order-item-id="${item.id}">+</button>
+                </div>
+                <div class="cart-item-price">${formatMoney(item.quantity * (item.price_at_time || item.price))}</div>
+                ${canEdit ? `<button class="btn btn-sm btn-outline remove-item" data-order-item-id="${item.id}">Remove</button>` : ''}
+              </div>
+            `).join('')}
+          </div>` : `<div class="empty-state"><p>No items yet</p></div>`}
+      </div>
+
+      <!-- TIMELINE -->
+      <div class="tab-content" id="tab-timeline">
+        ${historyData.length ? historyData.map(h => `
+          <div style="padding:12px; border-bottom:1px solid #eee;">
+            <strong>${formatDate(h.timestamp || h.created_at)}</strong> — ${h.action} 
+            ${h.payment_method ? `(${h.payment_method})` : ''}
+          </div>`).join('') : `<p class="text-muted">No history yet</p>`}
+      </div>
     `);
 
     setupTabs('order-tabs');
 
-    // NEW: Excel download from inside the drawer
-    const exportBtn = $('#drawer-export-excel');
-    if (exportBtn) {
-      exportBtn.addEventListener('click', () => {
-        api.downloadExcel(
-          `/history/orders/${orderId}/export-excel`,
-          `order_${orderId}_detailed_history.xlsx`
-        );
-      });
-    }
+    // Excel export
+    $('#drawer-export-excel')?.addEventListener('click', () => {
+      api.downloadExcel(`/history/orders/${orderId}/export-excel`, `order_${orderId}_detailed_history.xlsx`);
+    });
+
+    if (!canEdit) return;
+
+    // ── Action tab listeners ─────────────────────────────────────
+    const addTab = $('#detail-add-items');
+    const checkoutTab = $('#detail-checkout');
+    const cancelTab = $('#detail-cancel');
+
+    if (addTab) addTab.addEventListener('click', () => {
+      showAddItemsToOrder(orderId, () => showOrderDetail(orderId));
+    });
+
+    if (checkoutTab) checkoutTab.addEventListener('click', () => handleHeldCheckout(orderId));
+
+    if (cancelTab) cancelTab.addEventListener('click', async () => {
+      const confirmed = await confirmAction(
+        'Cancel Order',
+        `Are you sure you want to cancel Order #${orderId}? This cannot be undone.`,
+        { danger: true }
+      );
+      if (!confirmed) return;
+      try {
+        await api.post(`/orders/${orderId}/cancel`, {});
+        await finalizeOrder(orderId);                    // ← NEW
+        closeDrawer();
+        toast('Order cancelled successfully', 'warning');
+        renderPOS($('#content'));
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    // Hover effect for action tabs (modern feel)
+    document.querySelectorAll('.action-tab').forEach(tab => {
+      tab.addEventListener('mouseenter', () => tab.style.backgroundColor = '#e9ecef');
+      tab.addEventListener('mouseleave', () => tab.style.backgroundColor = '');
+    });
+
+    attachOrderItemListeners(orderId);
   } catch (err) {
     toast(err.message, 'error');
   }
 }
+
+
+// ── Helper: re-attach listeners after refresh ──
+function attachOrderItemListeners(orderId) {
+  const refreshItemsTab = async () => {
+    const [freshOrder] = await Promise.all([
+      api.get(`/orders/${orderId}`),
+      api.get(`/history/orders/${orderId}`).catch(() => [])
+    ]);
+    showOrderDetail(orderId); // full drawer refresh (cleanest & safest)
+  };
+
+  // Quantity buttons
+  document.querySelectorAll('#tab-items .qty-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const orderItemId = parseInt(btn.dataset.orderItemId);
+      const span = btn.parentElement.querySelector('span');
+      let qty = parseInt(span.textContent);
+      const newQty = btn.classList.contains('inc') ? qty + 1 : qty - 1;
+      await updateOrderItemQuantity(orderId, orderItemId, newQty);
+      await refreshItemsTab();
+    });
+  });
+
+  // Remove buttons
+  document.querySelectorAll('#tab-items .remove-item').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const orderItemId = parseInt(btn.dataset.orderItemId);
+      const confirmed = await confirmAction('Remove Item', 'Remove this item from the order?', { danger: true });
+      if (!confirmed) return;
+      await removeOrderItem(orderId, orderItemId);
+      await refreshItemsTab();
+    });
+  });
+}
+
 // ── Tables ──────────────────────────────────────────────────
 async function renderTables(el) {
   html(el, `
@@ -1358,7 +1740,7 @@ async function renderHistory(el) {
         <!-- NEW: Branch-level export (admin only) -->
         ${isAdmin() ? `
           <button id="export-branch-history" class="btn btn-success">
-            📥 Download Full Branch History (Excel)
+            📥 Full Branch Excel
           </button>` : ''}
       </div>
     </div>
@@ -1539,20 +1921,74 @@ function renderProfile(el) {
   });
 }
 
-// ── Admin: Branches ─────────────────────────────────────────
-async function renderBranches(el) {
-  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
+
+
+// ── Consolidated Admin Management (one page with tabs) ─────────────
+async function renderManagement(el) {
   html(el, `
-    <div class="page-header"><h2>Branches</h2><button class="btn btn-primary" id="add-branch-btn">Add Branch</button></div>
-    <div id="branches-list"><div class="loading-center"><div class="spinner"></div></div></div>
+    <div class="page-header"><h2>⚙️ Management</h2></div>
+    <div class="tabs" id="management-tabs">
+      <div class="tab-item active" data-tab="branches">🏢 Branches</div>
+      <div class="tab-item" data-tab="users">👥 Users</div>
+      <div class="tab-item" data-tab="categories">📁 Categories</div>
+      <div class="tab-item" data-tab="products">📦 Products</div>
+      <div class="tab-item" data-tab="sizes">📏 Sizes</div>
+      <div class="tab-item" data-tab="extras">✨ Extras</div>
+      <div class="tab-item" data-tab="menu-items">🍽 Menu Items</div>
+    </div>
+    <div id="management-content" style="margin-top:24px;"></div>
   `);
+
+  const tabs = $('#management-tabs');
+  tabs.querySelectorAll('.tab-item').forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const tabName = tab.dataset.tab;
+      state.currentAdminTab = tabName;
+      loadManagementTab(tabName);
+    });
+  });
+
+  // Load first tab
+  state.currentAdminTab = 'branches';
+  loadManagementTab('branches');
+}
+
+async function loadManagementTab(tabName) {
+  const content = $('#management-content');
+  if (tabName === 'branches') await renderBranchesTab(content);
+  else if (tabName === 'users') await renderUsersTab(content);
+  else if (tabName === 'categories') await renderCategoriesTab(content);
+  else if (tabName === 'products') await renderProductsTab(content);
+  else if (tabName === 'sizes') await renderSizesTab(content);
+  else if (tabName === 'extras') await renderExtrasTab(content);
+  else if (tabName === 'menu-items') await renderMenuItemsTab(content);
+}
+
+function refreshCurrentTab() {
+  if (state.currentRoute === 'management') {
+    loadManagementTab(state.currentAdminTab);
+  }
+}
+
+
+// ── Tab Renderers (Consolidated Management Page) ─────────────────────────────
+
+async function renderBranchesTab(el) {
+  html(el, `
+    <button class="btn btn-primary" id="add-branch-tab-btn" style="margin-bottom:16px;">Add Branch</button>
+    <div id="branches-list-tab"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+
   try {
     const branches = await api.get('/branches/');
     state.branches = branches;
+
     if (!branches.length) {
-      html($('#branches-list'), '<div class="empty-state"><div class="empty-icon">🏢</div><p>No branches</p></div>');
+      html($('#branches-list-tab'), '<div class="empty-state"><div class="empty-icon">🏢</div><p>No branches</p></div>');
     } else {
-      html($('#branches-list'), `
+      html($('#branches-list-tab'), `
         <div class="data-table-wrapper">
           <table class="data-table">
             <thead><tr><th>ID</th><th>Name</th><th>Created</th><th>Actions</th></tr></thead>
@@ -1570,27 +2006,276 @@ async function renderBranches(el) {
           </table>
         </div>
       `);
-      el.querySelectorAll('[data-edit-branch]').forEach(btn => {
+
+      $('#branches-list-tab').querySelectorAll('[data-edit-branch]').forEach(btn => {
         btn.addEventListener('click', () => showBranchForm(parseInt(btn.dataset.editBranch)));
       });
-      el.querySelectorAll('[data-del-branch]').forEach(btn => {
+
+      $('#branches-list-tab').querySelectorAll('[data-del-branch]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const confirmed = await confirmAction('Delete Branch', `Delete branch #${btn.dataset.delBranch}?`, { danger: true });
           if (!confirmed) return;
           try {
             await api.del(`/branches/${btn.dataset.delBranch}`);
             toast('Branch deleted', 'success');
-            renderBranches(el);
+            refreshCurrentTab();           // ← important
           } catch (err) { toast(err.message, 'error'); }
         });
       });
     }
   } catch (err) {
-    html($('#branches-list'), `<div class="error-message">${err.message}</div>`);
+    html($('#branches-list-tab'), `<div class="error-message">${err.message}</div>`);
   }
 
-  $('#add-branch-btn').addEventListener('click', () => showBranchForm());
+  $('#add-branch-tab-btn').addEventListener('click', () => showBranchForm());
 }
+
+async function renderUsersTab(el) {
+  html(el, `
+    <button class="btn btn-primary" id="add-user-tab-btn" style="margin-bottom:16px;">Add User</button>
+    <div id="users-list-tab"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+
+  try {
+    const users = await api.get('/users/');
+    state.users = users;
+
+    html($('#users-list-tab'), `
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead><tr><th>Username</th><th>Role</th><th>Branch</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${users.map(u => `<tr>
+              <td><strong>${u.username}</strong></td>
+              <td><span class="badge badge-info">${u.role}</span></td>
+              <td>${u.branch_id}</td>
+              <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-danger'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+              <td><button class="btn btn-sm btn-outline" data-edit-user="${u.id}">Edit</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    `);
+
+    $('#users-list-tab').querySelectorAll('[data-edit-user]').forEach(btn => {
+      btn.addEventListener('click', () => showUserForm(parseInt(btn.dataset.editUser)));
+    });
+  } catch (err) {
+    html($('#users-list-tab'), `<div class="error-message">${err.message}</div>`);
+  }
+
+  $('#add-user-tab-btn').addEventListener('click', () => showUserForm());
+}
+
+async function renderCategoriesTab(el) {
+  html(el, `
+    <button class="btn btn-primary" id="add-cat-tab-btn" style="margin-bottom:16px;">Add Category</button>
+    <div id="cat-list-tab"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+
+  try {
+    const cats = await api.get('/categories/');
+    state.categories = cats;
+    html($('#cat-list-tab'), crudTable(cats, ['id', 'name', 'created_at'], 'cat'));
+    bindCrudActionsForTab($('#cat-list-tab'), 'cat', refreshCurrentTab, showCategoryForm, '/categories');
+  } catch (err) {
+    html($('#cat-list-tab'), `<div class="error-message">${err.message}</div>`);
+  }
+
+  $('#add-cat-tab-btn').addEventListener('click', () => showCategoryForm());
+}
+
+async function renderProductsTab(el) {
+  html(el, `
+    <button class="btn btn-primary" id="add-prod-tab-btn" style="margin-bottom:16px;">Add Product</button>
+    <div id="prod-list-tab"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+
+  try {
+    const [prods, cats] = await Promise.all([api.get('/products/'), api.get('/categories/')]);
+    state.products = prods;
+    state.categories = cats;
+
+    const catMap = {};
+    cats.forEach(c => catMap[c.id] = c.name);
+
+    html($('#prod-list-tab'), `
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Actions</th></tr></thead>
+          <tbody>${prods.map(p => `<tr>
+            <td>${p.id}</td>
+            <td><strong>${p.name}</strong></td>
+            <td>${catMap[p.category_id] || p.category_id}</td>
+            <td>
+              <button class="btn btn-sm btn-outline" data-edit-prod="${p.id}">Edit</button>
+              <button class="btn btn-sm btn-danger" data-del-prod="${p.id}">Delete</button>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    `);
+
+    const container = $('#prod-list-tab');
+    container.querySelectorAll('[data-edit-prod]').forEach(b => {
+      b.addEventListener('click', () => showProductForm(parseInt(b.dataset.editProd)));
+    });
+    container.querySelectorAll('[data-del-prod]').forEach(b => {
+      b.addEventListener('click', async () => {
+        const confirmed = await confirmAction('Delete Product', `Delete product #${b.dataset.delProd}?`, { danger: true });
+        if (!confirmed) return;
+        try {
+          await api.del(`/products/${b.dataset.delProd}`);
+          toast('Product deleted', 'success');
+          refreshCurrentTab();
+        } catch (err) { toast(err.message, 'error'); }
+      });
+    });
+  } catch (err) {
+    html($('#prod-list-tab'), `<div class="error-message">${err.message}</div>`);
+  }
+
+  $('#add-prod-tab-btn').addEventListener('click', () => showProductForm());
+}
+
+async function renderSizesTab(el) {
+  html(el, `
+    <button class="btn btn-primary" id="add-size-tab-btn" style="margin-bottom:16px;">Add Size</button>
+    <div id="size-list-tab"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+
+  try {
+    const sizes = await api.get('/sizes/');
+    state.sizes = sizes;
+    html($('#size-list-tab'), crudTable(sizes, ['id', 'name'], 'size'));
+    bindCrudActionsForTab($('#size-list-tab'), 'size', refreshCurrentTab, showSizeForm, '/sizes');
+  } catch (err) {
+    html($('#size-list-tab'), `<div class="error-message">${err.message}</div>`);
+  }
+
+  $('#add-size-tab-btn').addEventListener('click', () => showSizeForm());
+}
+
+async function renderExtrasTab(el) {
+  html(el, `
+    <button class="btn btn-primary" id="add-extra-tab-btn" style="margin-bottom:16px;">Add Extra</button>
+    <div id="extra-list-tab"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+
+  try {
+    const extras = await api.get('/extras/');
+    state.extras = extras;
+    html($('#extra-list-tab'), crudTable(extras, ['id', 'name'], 'extra'));
+    bindCrudActionsForTab($('#extra-list-tab'), 'extra', refreshCurrentTab, showExtraForm, '/extras');
+  } catch (err) {
+    html($('#extra-list-tab'), `<div class="error-message">${err.message}</div>`);
+  }
+
+  $('#add-extra-tab-btn').addEventListener('click', () => showExtraForm());
+}
+
+async function renderMenuItemsTab(el) {
+  html(el, `
+    <button class="btn btn-primary" id="add-mi-tab-btn" style="margin-bottom:16px;">Add Menu Item</button>
+    <div id="mi-list-tab"><div class="loading-center"><div class="spinner"></div></div></div>
+  `);
+
+  const bid = state.selectedBranch;
+  if (!bid) {
+    html($('#mi-list-tab'), '<div class="empty-state"><p>Select a branch first</p></div>');
+    return;
+  }
+
+  try {
+    const [items, prods, sizes, extras] = await Promise.all([
+      api.get(`/menu-items/branch/${bid}`),   // ← FIXED: now respects selected branch
+      api.get('/products/'),
+      api.get('/sizes/'),
+      api.get('/extras/'),
+    ]);
+
+    state.menuItems = items;
+    state.products = prods;
+    state.sizes = sizes;
+    state.extras = extras;
+
+    const pMap = {}; prods.forEach(p => pMap[p.id] = p.name);
+    const sMap = {}; sizes.forEach(s => sMap[s.id] = s.name);
+
+    html($('#mi-list-tab'), `
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Product</th>
+              <th>Size</th>
+              <th>Price</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(mi => `
+              <tr>
+                <td>${mi.id}</td>
+                <td><strong>${pMap[mi.product_id] || mi.product_id}</strong></td>
+                <td>${sMap[mi.size_id] || mi.size_id}</td>
+                <td class="tabular-nums font-bold">${formatMoney(mi.price)}</td>
+                <td>
+                  <button class="btn btn-sm btn-outline" data-edit-mi="${mi.id}">Edit</button>
+                  <button class="btn btn-sm btn-danger" data-del-mi="${mi.id}">Delete</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `);
+
+    const container = $('#mi-list-tab');
+    container.querySelectorAll('[data-edit-mi]').forEach(b => {
+      b.addEventListener('click', () => showMenuItemForm(parseInt(b.dataset.editMi)));
+    });
+    container.querySelectorAll('[data-del-mi]').forEach(b => {
+      b.addEventListener('click', async () => {
+        const confirmed = await confirmAction('Delete Menu Item', `Delete menu item #${b.dataset.delMi}?`, { danger: true });
+        if (!confirmed) return;
+        try {
+          await api.del(`/menu-items/${b.dataset.delMi}`);
+          toast('Menu item deleted', 'success');
+          refreshCurrentTab();
+        } catch (err) { toast(err.message, 'error'); }
+      });
+    });
+  } catch (err) {
+    html($('#mi-list-tab'), `<div class="error-message">${err.message}</div>`);
+  }
+
+  $('#add-mi-tab-btn').addEventListener('click', () => showMenuItemForm());
+}
+// Helper for tab-based CRUD (replaces bindCrudActions when using tabs)
+function bindCrudActionsForTab(container, prefix, refreshFn, formFn, apiPath) {
+  container.querySelectorAll(`[data-edit-${prefix}]`).forEach(b => {
+    b.addEventListener('click', () => formFn(parseInt(b.dataset[`edit${capitalize(prefix)}`])));
+  });
+
+  container.querySelectorAll(`[data-del-${prefix}]`).forEach(b => {
+    b.addEventListener('click', async () => {
+      const confirmed = await confirmAction(
+        `Delete ${capitalize(prefix)}`,
+        `Are you sure you want to delete this ${prefix}?`,
+        { danger: true }
+      );
+      if (!confirmed) return;
+      try {
+        await api.del(`${apiPath}/${b.dataset[`del${capitalize(prefix)}`]}`);
+        toast(`${capitalize(prefix)} deleted`, 'success');
+        refreshFn();
+      } catch (err) { toast(err.message, 'error'); }
+    });
+  });
+}
+
 
 function showBranchForm(branchId = null) {
   const isEdit = !!branchId;
@@ -1612,46 +2297,11 @@ function showBranchForm(branchId = null) {
       else await api.post('/branches/', data);
       closeDrawer();
       toast(`Branch ${isEdit ? 'updated' : 'created'}`, 'success');
-      renderBranches($('#content'));
+      refreshCurrentTab();
     } catch (err) { toast(err.message, 'error'); }
   });
 }
 
-// ── Admin: Users ────────────────────────────────────────────
-async function renderUsers(el) {
-  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
-  html(el, `
-    <div class="page-header"><h2>Users</h2><button class="btn btn-primary" id="add-user-btn">Add User</button></div>
-    <div id="users-list"><div class="loading-center"><div class="spinner"></div></div></div>
-  `);
-  try {
-    const users = await api.get('/users/');
-    state.users = users;
-    html($('#users-list'), `
-      <div class="data-table-wrapper">
-        <table class="data-table">
-          <thead><tr><th>Username</th><th>Role</th><th>Branch</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody>
-            ${users.map(u => `<tr>
-              <td><strong>${u.username}</strong></td>
-              <td><span class="badge badge-info">${u.role}</span></td>
-              <td>${u.branch_id}</td>
-              <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-danger'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
-              <td><button class="btn btn-sm btn-outline" data-edit-user="${u.id}">Edit</button></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
-    `);
-    el.querySelectorAll('[data-edit-user]').forEach(btn => {
-      btn.addEventListener('click', () => showUserForm(parseInt(btn.dataset.editUser)));
-    });
-  } catch (err) {
-    html($('#users-list'), `<div class="error-message">${err.message}</div>`);
-  }
-
-  $('#add-user-btn').addEventListener('click', () => showUserForm());
-}
 
 function showUserForm(userId = null) {
   const isEdit = !!userId;
@@ -1708,28 +2358,11 @@ function showUserForm(userId = null) {
       }
       closeDrawer();
       toast(`User ${isEdit ? 'updated' : 'created'}`, 'success');
-      renderUsers($('#content'));
+      refreshCurrentTab();
     } catch (err) { toast(err.message, 'error'); }
   });
 }
 
-// ── Admin: Categories ───────────────────────────────────────
-async function renderCategories(el) {
-  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
-  html(el, `
-    <div class="page-header"><h2>Categories</h2><button class="btn btn-primary" id="add-cat-btn">Add Category</button></div>
-    <div id="cat-list"><div class="loading-center"><div class="spinner"></div></div></div>
-  `);
-  try {
-    const cats = await api.get('/categories/');
-    state.categories = cats;
-    html($('#cat-list'), crudTable(cats, ['id', 'name', 'created_at'], 'cat'));
-    bindCrudActions(el, 'cat', renderCategories, showCategoryForm, '/categories');
-  } catch (err) {
-    html($('#cat-list'), `<div class="error-message">${err.message}</div>`);
-  }
-  $('#add-cat-btn').addEventListener('click', () => showCategoryForm());
-}
 
 function showCategoryForm(id = null) {
   const item = id ? state.categories.find(c => c.id === id) : null;
@@ -1746,67 +2379,11 @@ function showCategoryForm(id = null) {
       else await api.post('/categories/', { name: $('#ef-name').value.trim() });
       closeDrawer();
       toast(`Category ${id ? 'updated' : 'created'}`, 'success');
-      renderCategories($('#content'));
+      refreshCurrentTab();
     } catch (err) { toast(err.message, 'error'); }
   });
 }
 
-// ── Admin: Products ─────────────────────────────────────────
-async function renderProducts(el) {
-  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
-  html(el, `
-    <div class="page-header"><h2>Products</h2><button class="btn btn-primary" id="add-prod-btn">Add Product</button></div>
-    <div id="prod-list"><div class="loading-center"><div class="spinner"></div></div></div>
-  `);
-  try {
-    const [prods, cats] = await Promise.all([
-      api.get('/products/'),
-      api.get('/categories/'),
-    ]);
-    state.products = prods;
-    state.categories = cats;
-    const catMap = {};
-    cats.forEach(c => catMap[c.id] = c.name);
-    html($('#prod-list'), `
-      <div class="data-table-wrapper">
-        <table class="data-table">
-          <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Actions</th></tr></thead>
-          <tbody>${prods.map(p => `<tr>
-            <td>${p.id}</td>
-            <td><strong>${p.name}</strong></td>
-            <td>${catMap[p.category_id] || p.category_id}</td>
-            <td>
-              <button class="btn btn-sm btn-outline" data-edit-prod="${p.id}">Edit</button>
-              <button class="btn btn-sm btn-danger" data-del-prod="${p.id}">Delete</button>
-            </td>
-          </tr>`).join('')}</tbody>
-        </table>
-      </div>
-    `);
-    el.querySelectorAll('[data-edit-prod]').forEach(b => b.addEventListener('click', () => showProductForm(parseInt(b.dataset.editProd))));
-    el.querySelectorAll('[data-del-prod]').forEach(b => {
-      b.addEventListener('click', async () => {
-        const confirmed = await confirmAction(
-          'Delete Product',
-          `Delete product #${b.dataset.delProd}?`,
-          { danger: true }
-        );
-        if (!confirmed) return;
-
-        try {
-          await api.del(`/products/${b.dataset.delProd}`);
-          toast('Product deleted', 'success');
-          renderProducts(el);
-        } catch (err) {
-          toast(err.message, 'error');
-        }
-      });
-    });
-  } catch (err) {
-    html($('#prod-list'), `<div class="error-message">${err.message}</div>`);
-  }
-  $('#add-prod-btn').addEventListener('click', () => showProductForm());
-}
 
 function showProductForm(id = null) {
   const item = id ? state.products.find(p => p.id === id) : null;
@@ -1830,28 +2407,11 @@ function showProductForm(id = null) {
       else await api.post('/products/', data);
       closeDrawer();
       toast(`Product ${id ? 'updated' : 'created'}`, 'success');
-      renderProducts($('#content'));
+      refreshCurrentTab();
     } catch (err) { toast(err.message, 'error'); }
   });
 }
 
-// ── Admin: Sizes ────────────────────────────────────────────
-async function renderSizes(el) {
-  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
-  html(el, `
-    <div class="page-header"><h2>Sizes</h2><button class="btn btn-primary" id="add-size-btn">Add Size</button></div>
-    <div id="size-list"><div class="loading-center"><div class="spinner"></div></div></div>
-  `);
-  try {
-    const sizes = await api.get('/sizes/');
-    state.sizes = sizes;
-    html($('#size-list'), crudTable(sizes, ['id', 'name'], 'size'));
-    bindCrudActions(el, 'size', renderSizes, showSizeForm, '/sizes');
-  } catch (err) {
-    html($('#size-list'), `<div class="error-message">${err.message}</div>`);
-  }
-  $('#add-size-btn').addEventListener('click', () => showSizeForm());
-}
 
 function showSizeForm(id = null) {
   const item = id ? state.sizes.find(s => s.id === id) : null;
@@ -1868,28 +2428,11 @@ function showSizeForm(id = null) {
       else await api.post('/sizes/', { name: $('#ef-name').value.trim() });
       closeDrawer();
       toast(`Size ${id ? 'updated' : 'created'}`, 'success');
-      renderSizes($('#content'));
+      refreshCurrentTab();
     } catch (err) { toast(err.message, 'error'); }
   });
 }
 
-// ── Admin: Extras ───────────────────────────────────────────
-async function renderExtras(el) {
-  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
-  html(el, `
-    <div class="page-header"><h2>Extras</h2><button class="btn btn-primary" id="add-extra-btn">Add Extra</button></div>
-    <div id="extra-list"><div class="loading-center"><div class="spinner"></div></div></div>
-  `);
-  try {
-    const extras = await api.get('/extras/');
-    state.extras = extras;
-    html($('#extra-list'), crudTable(extras, ['id', 'name'], 'extra'));
-    bindCrudActions(el, 'extra', renderExtras, showExtraForm, '/extras');
-  } catch (err) {
-    html($('#extra-list'), `<div class="error-message">${err.message}</div>`);
-  }
-  $('#add-extra-btn').addEventListener('click', () => showExtraForm());
-}
 
 function showExtraForm(id = null) {
   const item = id ? state.extras.find(e => e.id === id) : null;
@@ -1906,77 +2449,11 @@ function showExtraForm(id = null) {
       else await api.post('/extras/', { name: $('#ef-name').value.trim() });
       closeDrawer();
       toast(`Extra ${id ? 'updated' : 'created'}`, 'success');
-      renderExtras($('#content'));
+      refreshCurrentTab();
     } catch (err) { toast(err.message, 'error'); }
   });
 }
 
-// ── Admin: Menu Items ───────────────────────────────────────
-async function renderMenuItems(el) {
-  if (!isAdmin()) { html(el, '<div class="empty-state"><p>Access denied</p></div>'); return; }
-  html(el, `
-    <div class="page-header"><h2>Menu Items</h2><button class="btn btn-primary" id="add-mi-btn">Add Menu Item</button></div>
-    <div id="mi-list"><div class="loading-center"><div class="spinner"></div></div></div>
-  `);
-  try {
-    const [items, prods, sizes, branches, extras] = await Promise.all([
-      api.get('/menu-items/'),
-      api.get('/products/'),
-      api.get('/sizes/'),
-      api.get('/branches/'),
-      api.get('/extras/'),
-    ]);
-    state.menuItems = items;
-    state.products = prods;
-    state.sizes = sizes;
-    state.branches = branches;
-    state.extras = extras;
-    const pMap = {}; prods.forEach(p => pMap[p.id] = p.name);
-    const sMap = {}; sizes.forEach(s => sMap[s.id] = s.name);
-    const bMap = {}; branches.forEach(b => bMap[b.id] = b.name);
-
-    html($('#mi-list'), `
-      <div class="data-table-wrapper">
-        <table class="data-table">
-          <thead><tr><th>ID</th><th>Branch</th><th>Product</th><th>Size</th><th>Price</th><th>Actions</th></tr></thead>
-          <tbody>${items.map(mi => `<tr>
-            <td>${mi.id}</td>
-            <td>${bMap[mi.branch_id] || mi.branch_id}</td>
-            <td><strong>${pMap[mi.product_id] || mi.product_id}</strong></td>
-            <td>${sMap[mi.size_id] || mi.size_id}</td>
-            <td class="tabular-nums font-bold">${formatMoney(mi.price)}</td>
-            <td>
-              <button class="btn btn-sm btn-outline" data-edit-mi="${mi.id}">Edit</button>
-              <button class="btn btn-sm btn-danger" data-del-mi="${mi.id}">Delete</button>
-            </td>
-          </tr>`).join('')}</tbody>
-        </table>
-      </div>
-    `);
-    el.querySelectorAll('[data-edit-mi]').forEach(b => b.addEventListener('click', () => showMenuItemForm(parseInt(b.dataset.editMi))));
-    el.querySelectorAll('[data-del-mi]').forEach(b => {
-      b.addEventListener('click', async () => {
-        const confirmed = await confirmAction(
-          'Delete Menu Item',
-          `Delete menu item #${b.dataset.delMi}?`,
-          { danger: true }
-        );
-        if (!confirmed) return;
-
-        try {
-          await api.del(`/menu-items/${b.dataset.delMi}`);
-          toast('Menu item deleted', 'success');
-          renderMenuItems(el);
-        } catch (err) {
-          toast(err.message, 'error');
-        }
-      });
-    });
-  } catch (err) {
-    html($('#mi-list'), `<div class="error-message">${err.message}</div>`);
-  }
-  $('#add-mi-btn').addEventListener('click', () => showMenuItemForm());
-}
 
 function showMenuItemForm(id = null) {
   const isEdit = !!id;
@@ -1987,7 +2464,12 @@ function showMenuItemForm(id = null) {
       <div class="form-group">
         <label>Branch</label>
         <select id="mi-branch" required>
-          ${state.branches.map(b => `<option value="${b.id}" ${item && item.branch_id === b.id ? 'selected' : ''}>${b.name}</option>`).join('')}
+          ${state.branches.map(b => {
+    const isSelected = isEdit
+      ? (item.branch_id === b.id)
+      : (b.id === state.selectedBranch);   // ← THIS WAS THE FIX
+    return `<option value="${b.id}" ${isSelected ? 'selected' : ''}>${b.name}</option>`;
+  }).join('')}
         </select>
       </div>
       <div class="form-group">
@@ -2029,7 +2511,7 @@ function showMenuItemForm(id = null) {
     </form>
   `);
 
-  // Live preview
+  // Live preview (unchanged)
   function updatePreview() {
     const bName = $('#mi-branch').selectedOptions[0]?.text || '';
     const pName = $('#mi-product').selectedOptions[0]?.text || '';
@@ -2052,7 +2534,7 @@ function showMenuItemForm(id = null) {
       size_id: parseInt($('#mi-size').value),
       price: parseFloat($('#mi-price').value),
     };
-    // Collect extras
+
     const extras = [];
     $$('#mi-extras-list input[type="checkbox"]:checked').forEach(cb => {
       const extraId = parseInt(cb.dataset.extraId);
@@ -2069,10 +2551,11 @@ function showMenuItemForm(id = null) {
       else await api.post('/menu-items/', data);
       closeDrawer();
       toast(`Menu item ${isEdit ? 'updated' : 'created'}`, 'success');
-      renderMenuItems($('#content'));
+      refreshCurrentTab();
     } catch (err) { toast(err.message, 'error'); }
   });
 }
+
 
 // ── Shared CRUD Helpers ─────────────────────────────────────
 function crudTable(items, cols, prefix) {
@@ -2165,9 +2648,16 @@ function setupTabs(containerId) {
 }
 
 // ── Sidebar toggle ──────────────────────────────────────────
+// ── Sidebar toggle (updated) ──────────────────────────────────────────
 $('#sidebar-toggle').addEventListener('click', () => {
-  $('#sidebar').classList.toggle('collapsed');
-  $('#sidebar').classList.toggle('open');
+  const sidebar = $('#sidebar');
+  const appShell = $('#app-shell');
+
+  sidebar.classList.toggle('collapsed');
+  sidebar.classList.toggle('open');
+
+  // This class tells the whole layout that the sidebar is hidden
+  appShell.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
 });
 
 // ── Init ────────────────────────────────────────────────────
