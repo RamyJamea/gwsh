@@ -17,9 +17,15 @@ class Branch(Base, AuditMixin):
     tables: Mapped[list["RestaurantTable"]] = relationship(
         back_populates="branch", cascade="all, delete-orphan"
     )
-    users: Mapped[list["User"]] = relationship(back_populates="branch")
-    menu_items: Mapped[list["MenuItem"]] = relationship(back_populates="branch")
-    orders: Mapped[list["Order"]] = relationship(back_populates="branch")
+    users: Mapped[list["User"]] = relationship(
+        back_populates="branch", cascade="all, delete-orphan"
+    )
+    menu_items: Mapped[list["MenuItem"]] = relationship(
+        back_populates="branch", cascade="all, delete-orphan"
+    )
+    orders: Mapped[list["Order"]] = relationship(
+        back_populates="branch", cascade="all, delete-orphan"
+    )
 
 
 class RestaurantTable(Base, AuditMixin):

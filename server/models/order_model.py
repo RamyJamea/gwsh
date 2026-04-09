@@ -27,7 +27,9 @@ class Order(Base, AuditMixin):
     order_items: Mapped[list["OrderItem"]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
     )
-    order_histories: Mapped[list["OrderHistory"]] = relationship(back_populates="order")
+    order_histories: Mapped[list["OrderHistory"]] = relationship(
+        back_populates="order", cascade="all, delete-orphan", passive_deletes=True
+    )
     table: Mapped["RestaurantTable"] = relationship(back_populates="orders")
 
 

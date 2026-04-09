@@ -15,8 +15,10 @@ if TYPE_CHECKING:
 class OrderHistory(Base, AuditMixin):
     __tablename__ = "order_histories"
 
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
-    cashier_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"))
+    cashier_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     action: Mapped[ActionEnum] = mapped_column(default=ActionEnum.CREATE)
     timestamp: Mapped[datetime] = mapped_column(server_default=func.now())
     total_amount_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
@@ -24,14 +26,18 @@ class OrderHistory(Base, AuditMixin):
     cashier: Mapped["User"] = relationship(back_populates="order_histories")
     order: Mapped["Order"] = relationship(back_populates="order_histories")
     order_history_items: Mapped[list["OrderHistoryItem"]] = relationship(
-        back_populates="order_history"
+        back_populates="order_history",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
 class OrderHistoryItem(Base, AuditMixin):
     __tablename__ = "order_history_items"
 
-    order_history_id: Mapped[int] = mapped_column(ForeignKey("order_histories.id"))
+    order_history_id: Mapped[int] = mapped_column(
+        ForeignKey("order_histories.id", ondelete="CASCADE")
+    )
     menu_item_id: Mapped[int] = mapped_column(ForeignKey("menu_items.id"))
     quantity: Mapped[int]
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
@@ -41,7 +47,9 @@ class OrderHistoryItem(Base, AuditMixin):
         back_populates="order_history_items"
     )
     order_item_extras: Mapped[list["OrderHistoryItemExtra"]] = relationship(
-        back_populates="order_history_item"
+        back_populates="order_history_item",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
@@ -49,7 +57,7 @@ class OrderHistoryItemExtra(Base, AuditMixin):
     __tablename__ = "order_history_item_extras"
 
     order_history_item_id: Mapped[int] = mapped_column(
-        ForeignKey("order_history_items.id")
+        ForeignKey("order_history_items.id", ondelete="CASCADE")
     )
     menu_item_extra_id: Mapped[int] = mapped_column(ForeignKey("menu_items_extras.id"))
     quantity: Mapped[int]

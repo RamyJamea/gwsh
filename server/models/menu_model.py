@@ -13,7 +13,9 @@ if TYPE_CHECKING:
 class MenuItemExtra(Base, AuditMixin):
     __tablename__ = "menu_items_extras"
 
-    menu_item_id: Mapped[int] = mapped_column(ForeignKey("menu_items.id"))
+    menu_item_id: Mapped[int] = mapped_column(
+        ForeignKey("menu_items.id", ondelete="CASCADE")
+    )
     extra_id: Mapped[int] = mapped_column(ForeignKey("extras.id"))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
@@ -35,9 +37,13 @@ class MenuItem(Base, AuditMixin):
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
     branch: Mapped["Branch"] = relationship(back_populates="menu_items")
+
     menu_items_extras: Mapped[list["MenuItemExtra"]] = relationship(
-        back_populates="menu_item"
+        back_populates="menu_item", cascade="all, delete-orphan", passive_deletes=True
     )
+
     product: Mapped["Product"] = relationship(back_populates="menu_items")
     size: Mapped["Size"] = relationship(back_populates="menu_items")
-    order_items: Mapped[list["OrderItem"]] = relationship(back_populates="menu_item")
+    order_items: Mapped[list["OrderItem"]] = relationship(
+        back_populates="menu_item", cascade="all, delete-orphan"
+    )
