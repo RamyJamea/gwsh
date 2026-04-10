@@ -367,22 +367,35 @@ async function renderDashboard(el) {
         <div class="stat-card"><div class="stat-label">Orders Today</div><div class="stat-value" id="dash-orders">—</div></div>
         <div class="stat-card"><div class="stat-label">Active Users</div><div class="stat-value" id="dash-users">—</div></div>
         <div class="stat-card"><div class="stat-label">Menu Items</div><div class="stat-value" id="dash-menu">—</div></div>
+        <!-- NEW: Total Revenue for Admin -->
+        <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value tabular-nums" id="dash-revenue">—</div></div>
       </div>
       <div class="card"><div class="card-header">Recent Activity</div><div class="card-body" id="dash-activity"><div class="loading-center"><div class="spinner"></div></div></div></div>
     `);
+
     try {
       const [branches, orders, menuItems] = await Promise.all([
         api.get('/branches/'),
         state.selectedBranch ? api.get(`/orders/?branch_id=${state.selectedBranch}`) : Promise.resolve([]),
         api.get('/menu-items/').catch(() => []),
       ]);
+
       $('#dash-branches').textContent = branches.length;
       $('#dash-orders').textContent = orders.length;
       $('#dash-menu').textContent = menuItems.length;
+
       try {
         const users = await api.get('/users/');
         $('#dash-users').textContent = users.filter(u => u.is_active).length;
       } catch { $('#dash-users').textContent = '—'; }
+
+      // ── NEW: Calculate Total Revenue (sum of all paid orders) ──
+      const revenue = orders
+        .filter(o => o.action === 'pay')
+        .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+
+      $('#dash-revenue').textContent = formatMoney(revenue);
+
       if (orders.length) {
         html($('#dash-activity'), orders.slice(0, 10).map(o =>
           `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
