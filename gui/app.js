@@ -1454,20 +1454,13 @@ async function showOrderDetail(orderId) {
     const isActive = order.action === 'create' || order.action === 'update';
     const canEdit = isCashier() && isActive;
 
-    // ── MODERN ACTION TABS (replaces the old button bar) ─────────────────────
     let actionsHtml = '';
     if (canEdit) {
       actionsHtml = `
         <div class="action-tabs" style="margin:24px 0 28px; display:flex; gap:8px; background:#f8f9fa; padding:8px; border-radius:9999px; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
-          <div id="detail-add-items" class="action-tab" style="flex:1; padding:16px 24px; border-radius:9999px; text-align:center; font-weight:600; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:all 0.2s;">
-            Add
-          </div>
-          <div id="detail-checkout" class="action-tab" style="flex:1; padding:16px 24px; border-radius:9999px; text-align:center; font-weight:600; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:all 0.2s;">
-            Checkout
-          </div>
-          <div id="detail-cancel" class="action-tab danger" style="flex:1; padding:16px 24px; border-radius:9999px; text-align:center; font-weight:600; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:all 0.2s; color:#dc3545;">
-            Cancel
-          </div>
+          <div id="detail-add-items" class="action-tab" style="flex:1; padding:16px 24px; border-radius:9999px; text-align:center; font-weight:600; font-size:0.9rem; cursor:pointer;">Add</div>
+          <div id="detail-checkout" class="action-tab" style="flex:1; padding:16px 24px; border-radius:9999px; text-align:center; font-weight:600; font-size:0.9rem; cursor:pointer;">Checkout</div>
+          <div id="detail-cancel" class="action-tab danger" style="flex:1; padding:16px 24px; border-radius:9999px; text-align:center; font-weight:600; font-size:0.9rem; cursor:pointer; color:#dc3545;">Cancel</div>
         </div>`;
     }
 
@@ -1485,7 +1478,7 @@ async function showOrderDetail(orderId) {
       <div class="tabs" id="order-tabs">
         <div class="tab-item active" data-tab="summary">Summary</div>
         <div class="tab-item" data-tab="items">Items</div>
-        <div class="tab-item" data-tab="timeline">History</div>
+        <div class="tab-item" data-tab="timeline">History (Detailed)</div>
       </div>
 
       <!-- SUMMARY -->
@@ -1501,92 +1494,110 @@ async function showOrderDetail(orderId) {
         </div>
       </div>
 
-      <!-- ITEMS -->
-      <div class="tab-content" id="tab-items">
-        ${order.order_items && order.order_items.length ? `
-          <div class="cart-items" style="max-height:420px; overflow-y:auto;">
-            ${order.order_items.map(item => `
-              <div class="cart-item" data-order-item-id="${item.id}">
-                <div class="cart-item-info">
-                  <div class="cart-item-name">${item.menu_item?.product?.name || item.menu_item?.name || 'Item'}</div>
-                  <div class="cart-item-extras">
-                    ${item.menu_item?.size?.name || ''} 
-                    ${item.order_item_extras?.length ? '· ' + item.order_item_extras.map(e => e.name || `Extra #${e.menu_item_extra_id}`).join(', ') : ''}
-                  </div>
-                </div>
-                <div class="cart-item-qty">
-                  <button class="qty-btn dec" data-order-item-id="${item.id}">−</button>
-                  <span>${item.quantity}</span>
-                  <button class="qty-btn inc" data-order-item-id="${item.id}">+</button>
-                </div>
-                <div class="cart-item-price">${formatMoney(item.quantity * (item.price_at_time || item.price))}</div>
-                ${canEdit ? `<button class="btn btn-sm btn-outline remove-item" data-order-item-id="${item.id}">Remove</button>` : ''}
-              </div>
-            `).join('')}
-          </div>` : `<div class="empty-state"><p>No items yet</p></div>`}
-      </div>
+      <!-- ITEMS (full products + extras) -->
+<div class="tab-content" id="tab-items">
+  ${(() => {
+        // Use latest history snapshot (has correct names) or fall back to order
+        const latestHistory = historyData.length ? historyData[historyData.length - 1] : null;
+        const itemsToShow = latestHistory?.order_history_items || order.order_items || [];
 
-      <!-- TIMELINE -->
+        if (!itemsToShow.length) {
+          return `<div class="empty-state"><p>No items in this order</p></div>`;
+        }
+
+        return `
+      <div class="cart-items" style="max-height:420px; overflow-y:auto; display:flex; flex-direction:column; gap:12px;">
+        ${itemsToShow.map(item => `
+          <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <strong style="font-size:1.1rem;">${item.menu_item_name || `Item #${item.menu_item_id || item.id}`}</strong>
+                <div style="margin-top:4px; color:#555;">× ${item.quantity}</div>
+              </div>
+              <div class="tabular-nums font-bold" style="font-size:1.1rem;">
+                ${formatMoney(item.quantity * (item.price_at_time || item.price || 0))}
+              </div>
+            </div>
+            
+            ${item.order_item_extras && item.order_item_extras.length ? `
+              <div style="margin-top:12px; padding:10px; background:#f8f9fa; border-radius:8px; font-size:0.9rem;">
+                <strong>Extras:</strong>
+                ${item.order_item_extras.map(e =>
+          `${e.extra_name || e.name || `Extra #${e.menu_item_extra_id}`}${e.quantity > 1 ? ` ×${e.quantity}` : ''}`
+        ).join(' • ')}
+              </div>` : ''}
+          </div>
+        `).join('')}
+      </div>`;
+      })()}
+</div>
+
+
+      <!-- DETAILED HISTORY TIMELINE (NEW) -->
       <div class="tab-content" id="tab-timeline">
         ${historyData.length ? historyData.map(h => `
-          <div style="padding:12px; border-bottom:1px solid #eee;">
-            <strong>${formatDate(h.timestamp || h.created_at)}</strong> — ${h.action} 
-            ${h.payment_method ? `(${h.payment_method})` : ''}
-          </div>`).join('') : `<p class="text-muted">No history yet</p>`}
+          <div class="history-entry" style="margin-bottom:24px; padding:16px; background:#f8f9fa; border-radius:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div>
+                <strong>${formatDate(h.timestamp)}</strong>
+                <span class="badge badge-${actionBadge(h.action)}" style="margin-left:8px;">${h.action}</span>
+              </div>
+              <div class="text-sm">
+                by <strong>${h.cashier_name || 'Unknown'}</strong>
+              </div>
+              <div class="tabular-nums font-bold">
+                ${formatMoney(h.total_amount_at_time)}
+              </div>
+            </div>
+
+            <!-- Items + Extras for this snapshot -->
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              ${h.order_history_items && h.order_history_items.length ?
+          h.order_history_items.map(item => `
+                  <div style="padding:10px; background:white; border-radius:8px; font-size:0.9rem;">
+                    <strong>${item.menu_item_name}</strong> × ${item.quantity}
+                    <span class="text-muted" style="float:right;">${formatMoney(item.price_at_time)}</span>
+                    ${item.order_item_extras && item.order_item_extras.length ? `
+                      <div style="margin-top:6px; font-size:0.85rem; color:#555;">
+                        Extras: ${item.order_item_extras.map(e =>
+            `${e.extra_name}${e.quantity > 1 ? ` ×${e.quantity}` : ''}`
+          ).join(', ')}
+                      </div>` : ''}
+                  </div>
+                `).join('') :
+          '<div class="text-muted">No items in this snapshot</div>'}
+            </div>
+          </div>
+        `).join('') : `<p class="text-muted">No history recorded yet.</p>`}
       </div>
     `);
 
     setupTabs('order-tabs');
 
-    // Excel export
+    // Export button
     $('#drawer-export-excel')?.addEventListener('click', () => {
       api.downloadExcel(`/history/orders/${orderId}/export-excel`, `order_${orderId}_detailed_history.xlsx`);
     });
 
-    if (!canEdit) return;
-
-    // ── Action tab listeners ─────────────────────────────────────
-    const addTab = $('#detail-add-items');
-    const checkoutTab = $('#detail-checkout');
-    const cancelTab = $('#detail-cancel');
-
-    if (addTab) addTab.addEventListener('click', () => {
-      showAddItemsToOrder(orderId, () => showOrderDetail(orderId));
-    });
-
-    if (checkoutTab) checkoutTab.addEventListener('click', () => handleHeldCheckout(orderId));
-
-    if (cancelTab) cancelTab.addEventListener('click', async () => {
-      const confirmed = await confirmAction(
-        'Cancel Order',
-        `Are you sure you want to cancel Order #${orderId}? This cannot be undone.`,
-        { danger: true }
-      );
-      if (!confirmed) return;
-      try {
+    if (canEdit) {
+      $('#detail-add-items')?.addEventListener('click', () => showAddItemsToOrder(orderId, () => showOrderDetail(orderId)));
+      $('#detail-checkout')?.addEventListener('click', () => handleHeldCheckout(orderId));
+      $('#detail-cancel')?.addEventListener('click', async () => {
+        const confirmed = await confirmAction('Cancel Order', `Cancel Order #${orderId}?`, { danger: true });
+        if (!confirmed) return;
         await api.post(`/orders/${orderId}/cancel`, {});
-        await finalizeOrder(orderId);                    // ← NEW
+        await finalizeOrder(orderId);
         closeDrawer();
-        toast('Order cancelled successfully', 'warning');
+        toast('Order cancelled', 'warning');
         renderPOS($('#content'));
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    // Hover effect for action tabs (modern feel)
-    document.querySelectorAll('.action-tab').forEach(tab => {
-      tab.addEventListener('mouseenter', () => tab.style.backgroundColor = '#e9ecef');
-      tab.addEventListener('mouseleave', () => tab.style.backgroundColor = '');
-    });
+      });
+    }
 
     attachOrderItemListeners(orderId);
   } catch (err) {
     toast(err.message, 'error');
   }
 }
-
-
 // ── Helper: re-attach listeners after refresh ──
 function attachOrderItemListeners(orderId) {
   const refreshItemsTab = async () => {
@@ -1730,14 +1741,14 @@ function showTableForm() {
 }
 
 // ── UPDATED renderHistory (added branch export button + per-order Excel button) ──
+
+
 async function renderHistory(el) {
   html(el, `
     <div class="page-header">
       <h2>Order History</h2>
       <div class="flex gap-3">
         <button class="btn btn-primary" id="refresh-history">Refresh</button>
-        
-        <!-- NEW: Branch-level export (admin only) -->
         ${isAdmin() ? `
           <button id="export-branch-history" class="btn btn-success">
             📥 Full Branch Excel
@@ -1754,28 +1765,47 @@ async function renderHistory(el) {
   }
 
   try {
-    const orders = await api.get(`/orders/?branch_id=${bid}&limit=100`);
+    let orders = await api.get(`/orders/?branch_id=${bid}&limit=200`);
+
+    // Filter completed orders
     state.completedOrders = orders.filter(o => o.action === 'pay' || o.action === 'cancel');
+
+    // ── ENRICH WITH CASHIER NAME (so the table shows everything) ──
+    if (state.completedOrders.length) {
+      const enriched = await Promise.all(
+        state.completedOrders.map(async (order) => {
+          try {
+            const history = await api.get(`/history/orders/${order.id}`);
+            const latest = history[history.length - 1] || {};
+            return {
+              ...order,
+              cashier_name: latest.cashier_name || '—'
+            };
+          } catch {
+            return { ...order, cashier_name: '—' };
+          }
+        })
+      );
+      state.completedOrders = enriched;
+    }
+
     state.historyPage = 1;
     renderHistoryTable(el);
   } catch (err) {
     html($('#history-list'), `<div class="error-message">${err.message}</div>`);
   }
 
-  // Refresh
   $('#refresh-history').addEventListener('click', () => renderHistory(el));
 
-  // NEW: Branch export
   const branchBtn = $('#export-branch-history');
   if (branchBtn) {
     branchBtn.addEventListener('click', async () => {
       const confirmed = await confirmAction(
         'Download Full Branch History',
-        `This will export detailed history of ALL orders in branch #${bid} as an Excel file (3 sheets).`,
+        `Export detailed history of ALL orders in branch #${bid} (3 sheets)?`,
         { confirmText: 'Download', danger: false }
       );
       if (!confirmed) return;
-
       await api.downloadExcel(
         `/history/branches/${bid}/export-excel`,
         `branch_${bid}_detailed_history.xlsx`
@@ -1783,7 +1813,11 @@ async function renderHistory(el) {
     });
   }
 }
+
+
 // ── UPDATED renderHistoryTable (added per-order Excel button) ──
+
+
 function renderHistoryTable(el) {
   const listEl = $('#history-list');
   const pageSize = state.historyPageSize;
@@ -1805,6 +1839,7 @@ function renderHistoryTable(el) {
         <thead>
           <tr>
             <th>Order</th>
+            <th>Cashier</th>
             <th>Status</th>
             <th>Payment</th>
             <th>Total</th>
@@ -1816,12 +1851,13 @@ function renderHistoryTable(el) {
           ${paginated.map(o => `
             <tr>
               <td><strong>#${o.id}</strong></td>
+              <td><strong>${o.cashier_name || '—'}</strong></td>
               <td><span class="badge badge-${actionBadge(o.action)}">${o.action}</span></td>
               <td>${o.payment_method || '—'}</td>
               <td class="tabular-nums font-bold">${formatMoney(o.total_amount)}</td>
               <td class="text-sm text-muted">${formatDate(o.created_at)}</td>
               <td>
-                <button class="btn btn-sm btn-outline" data-view-order="${o.id}">View</button>
+                <button class="btn btn-sm btn-outline" data-view-order="${o.id}">View Details</button>
                 ${isAdmin() ? `
                 <button class="btn btn-sm btn-success" data-export-order="${o.id}" title="Download detailed Excel">
                   📥 Excel
@@ -1833,7 +1869,6 @@ function renderHistoryTable(el) {
       </table>
     </div>
 
-    <!-- Pagination (unchanged) -->
     <div class="pagination-controls" style="margin-top:20px;display:flex;justify-content:space-between;align-items:center;">
       <div class="text-sm text-muted">
         Showing <strong>${start + 1}–${Math.min(end, state.completedOrders.length)}</strong> 
@@ -1843,7 +1878,6 @@ function renderHistoryTable(el) {
         <button id="history-prev" class="btn btn-sm btn-outline" ${page === 1 ? 'disabled' : ''}>← Previous</button>
         <span class="text-sm">Page <strong>${page}</strong> of ${totalPages}</span>
         <button id="history-next" class="btn btn-sm btn-outline" ${page >= totalPages ? 'disabled' : ''}>Next →</button>
-
         <select id="history-page-size" class="btn btn-sm btn-outline" style="padding:4px 8px;">
           <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
           <option value="20" ${pageSize === 20 ? 'selected' : ''}>20</option>
@@ -1855,7 +1889,7 @@ function renderHistoryTable(el) {
 
   html(listEl, htmlContent);
 
-  // Existing pagination listeners...
+  // Pagination listeners
   $('#history-prev')?.addEventListener('click', () => { if (state.historyPage > 1) { state.historyPage--; renderHistoryTable(el); } });
   $('#history-next')?.addEventListener('click', () => { if (state.historyPage < totalPages) { state.historyPage++; renderHistoryTable(el); } });
   $('#history-page-size')?.addEventListener('change', (e) => {
@@ -1864,22 +1898,21 @@ function renderHistoryTable(el) {
     renderHistoryTable(el);
   });
 
-  // View buttons
+  // View button
   listEl.querySelectorAll('[data-view-order]').forEach(btn => {
     btn.addEventListener('click', () => showOrderDetail(parseInt(btn.dataset.viewOrder)));
   });
 
-  // NEW: Per-order Excel export
+  // Per-order Excel
   listEl.querySelectorAll('[data-export-order]').forEach(btn => {
     btn.addEventListener('click', () => {
       const orderId = parseInt(btn.dataset.exportOrder);
-      api.downloadExcel(
-        `/history/orders/${orderId}/export-excel`,
-        `order_${orderId}_detailed_history.xlsx`
-      );
+      api.downloadExcel(`/history/orders/${orderId}/export-excel`, `order_${orderId}_detailed_history.xlsx`);
     });
   });
 }
+
+
 // ── Profile ─────────────────────────────────────────────────
 function renderProfile(el) {
   const u = state.user;

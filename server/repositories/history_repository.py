@@ -5,6 +5,20 @@ from .base_repository import BaseRepository
 from ..models import OrderHistory, OrderHistoryItem, OrderHistoryItemExtra
 
 
+from typing import Sequence
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import select
+
+from .base_repository import BaseRepository
+from ..models import (
+    OrderHistory,
+    OrderHistoryItem,
+    OrderHistoryItemExtra,
+    MenuItem,  # ← added
+    MenuItemExtra,  # ← added
+)
+
+
 class OrderHistoryRepository(BaseRepository[OrderHistory]):
     def __init__(self, session: Session):
         super().__init__(session, OrderHistory)
@@ -15,8 +29,15 @@ class OrderHistoryRepository(BaseRepository[OrderHistory]):
         stmt = (
             select(OrderHistory)
             .options(
-                selectinload(OrderHistory.order_history_items).selectinload(
-                    OrderHistoryItem.order_item_extras
+                # Full details for items + extras + names
+                selectinload(OrderHistory.order_history_items).options(
+                    selectinload(OrderHistoryItem.menu_item).options(
+                        selectinload(MenuItem.product),
+                        selectinload(MenuItem.size),
+                    ),
+                    selectinload(OrderHistoryItem.order_item_extras)
+                    .selectinload(OrderHistoryItemExtra.menu_item_extra)
+                    .selectinload(MenuItemExtra.extra),
                 ),
                 selectinload(OrderHistory.cashier),
                 selectinload(OrderHistory.order),
@@ -29,9 +50,18 @@ class OrderHistoryRepository(BaseRepository[OrderHistory]):
         stmt = (
             select(OrderHistory)
             .options(
-                selectinload(OrderHistory.order_history_items).selectinload(
-                    OrderHistoryItem.order_item_extras
+                # Full details for items + extras + names
+                selectinload(OrderHistory.order_history_items).options(
+                    selectinload(OrderHistoryItem.menu_item).options(
+                        selectinload(MenuItem.product),
+                        selectinload(MenuItem.size),
+                    ),
+                    selectinload(OrderHistoryItem.order_item_extras)
+                    .selectinload(OrderHistoryItemExtra.menu_item_extra)
+                    .selectinload(MenuItemExtra.extra),
                 ),
+                # cashier is now loaded for the list endpoint too
+                selectinload(OrderHistory.cashier),
             )
             .where(OrderHistory.order_id == order_id)
             .order_by(OrderHistory.timestamp.desc())

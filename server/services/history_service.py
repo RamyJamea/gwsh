@@ -60,13 +60,10 @@ class OrderHistoryService(BaseService):
 
     def export_detailed_history_to_excel(self, order_id: int) -> bytes:
         """Generate a detailed Excel export of the full order history (all snapshots)."""
-        # Fetch all history entries for the order
         histories: Sequence[OrderHistory] = self.get_history_for_order(order_id)
         if not histories:
             raise ValueError(f"No history found for order {order_id}")
 
-        # Force full details (items + extras + names) by calling get_history_detail
-        # (This is safe because history per order is usually very small)
         detailed_histories = [self.get_history_detail(h.id) for h in histories]
 
         # ── Sheet 1: History Summary ─────────────────────────────────────
@@ -79,15 +76,13 @@ class OrderHistoryService(BaseService):
                     "Action": (
                         h.action.value if hasattr(h.action, "value") else str(h.action)
                     ),
-                    "Cashier": (
-                        h.cashier.username if getattr(h, "cashier", None) else "N/A"
-                    ),
+                    "Cashier": h.cashier.username if h.cashier else "N/A",
                     "Total Amount": float(h.total_amount_at_time or 0),
                 }
             )
         summary_df = pd.DataFrame(summary_data)
 
-        # ── Sheet 2: Detailed Items & Extras (flattened, one row per item/extra) ──
+        # ── Sheet 2: Detailed Items & Extras ─────────────────────────────
         items_data = []
         for h in detailed_histories:
             hist_meta = {
@@ -96,22 +91,15 @@ class OrderHistoryService(BaseService):
                 "Action": (
                     h.action.value if hasattr(h.action, "value") else str(h.action)
                 ),
-                "Cashier": h.cashier.username if getattr(h, "cashier", None) else "N/A",
+                "Cashier": h.cashier.username if h.cashier else "N/A",
                 "Total Amount": float(h.total_amount_at_time or 0),
             }
 
             for item in h.order_history_items:
-                # Build readable menu item name (product + size)
-                if (
-                    getattr(item, "menu_item", None)
-                    and getattr(item.menu_item, "product", None)
-                    and getattr(item.menu_item, "size", None)
-                ):
-                    item_name = (
-                        f"{item.menu_item.product.name} ({item.menu_item.size.name})"
-                    )
-                else:
-                    item_name = f"MenuItem #{item.menu_item_id}"
+                # ✅ Now always safe – no more fallback needed
+                item_name = (
+                    f"{item.menu_item.product.name} ({item.menu_item.size.name})"
+                )
 
                 # Main item row
                 row = hist_meta.copy()
@@ -126,20 +114,15 @@ class OrderHistoryService(BaseService):
                 )
                 items_data.append(row)
 
-                # Extra rows (indented for visual hierarchy)
+                # Extra rows
                 for extra in item.order_item_extras:
-                    if getattr(extra, "menu_item_extra", None) and getattr(
-                        extra.menu_item_extra, "extra", None
-                    ):
-                        extra_name = extra.menu_item_extra.extra.name
-                    else:
-                        extra_name = f"Extra #{extra.menu_item_extra_id}"
+                    extra_name = extra.menu_item_extra.extra.name  # ✅ always safe now
 
                     extra_row = hist_meta.copy()
                     extra_row.update(
                         {
                             "Type": "Extra",
-                            "Item / Extra": f"   └─ {extra_name}",
+                            "Item / Extra": f" └─ {extra_name}",
                             "Quantity": extra.quantity,
                             "Price at Time": float(extra.price_at_time or 0),
                             "Subtotal": float(extra.price_at_time or 0)
@@ -150,13 +133,12 @@ class OrderHistoryService(BaseService):
 
         items_df = pd.DataFrame(items_data)
 
-        # ── Generate Excel file in memory ─────────────────────────────────
+        # Generate Excel (unchanged)
         output = BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             summary_df.to_excel(writer, sheet_name="History Summary", index=False)
             items_df.to_excel(writer, sheet_name="Detailed Items & Extras", index=False)
 
-            # Optional: auto-adjust column widths
             for sheet in writer.sheets.values():
                 for column in sheet.columns:
                     max_length = 0
@@ -273,19 +255,11 @@ class OrderHistoryService(BaseService):
             }
 
             for item in h.order_history_items:
-                # Build readable menu item name (product + size)
-                if (
-                    getattr(item, "menu_item", None)
-                    and getattr(item.menu_item, "product", None)
-                    and getattr(item.menu_item, "size", None)
-                ):
-                    item_name = (
-                        f"{item.menu_item.product.name} ({item.menu_item.size.name})"
-                    )
-                else:
-                    item_name = f"MenuItem #{item.menu_item_id}"
+                # ✅ Always safe now
+                item_name = (
+                    f"{item.menu_item.product.name} ({item.menu_item.size.name})"
+                )
 
-                # Main item row
                 row = hist_meta.copy()
                 row.update(
                     {
@@ -298,20 +272,14 @@ class OrderHistoryService(BaseService):
                 )
                 items_data.append(row)
 
-                # Extra rows (indented for visual hierarchy)
                 for extra in item.order_item_extras:
-                    if getattr(extra, "menu_item_extra", None) and getattr(
-                        extra.menu_item_extra, "extra", None
-                    ):
-                        extra_name = extra.menu_item_extra.extra.name
-                    else:
-                        extra_name = f"Extra #{extra.menu_item_extra_id}"
+                    extra_name = extra.menu_item_extra.extra.name  # ✅ safe
 
                     extra_row = hist_meta.copy()
                     extra_row.update(
                         {
                             "Type": "Extra",
-                            "Item / Extra": f"   └─ {extra_name}",
+                            "Item / Extra": f" └─ {extra_name}",
                             "Quantity": extra.quantity,
                             "Price at Time": float(extra.price_at_time or 0),
                             "Subtotal": float(extra.price_at_time or 0)

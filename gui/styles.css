@@ -1782,3 +1782,7 @@ img {
 #app-shell.sidebar-collapsed #content {
   padding-left: 32px !important;
 }
+
+.history-entry {
+  border-left: 4px solid var(--primary);
+}
