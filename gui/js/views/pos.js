@@ -37,7 +37,6 @@ async function renderPOS(el) {
               <span class="cart-header-title">Order Ticket</span>
               <div style="display:flex; align-items:center; gap:0.5rem;">
                 <span class="cart-table-pill" id="cart-table-label">No Table</span>
-                <button class="btn btn-sm btn-ghost" id="cart-pick-table" title="Change Table"><i data-lucide="refresh-cw" style="width:16px;height:16px;"></i></button>
               </div>
             </div>
             
@@ -119,13 +118,7 @@ function initializePOSMenu() {
     renderPOSProducts(filtered);
   });
 
-  // Change Table button (repurposed)
-  const changeBtn = $('#cart-pick-table');
-  if (changeBtn) {
-    changeBtn.textContent = 'Change Table';
-    changeBtn.addEventListener('click', goBackToFloor);
-  }
-
+  // Form controls mapping (Change table button removed as per requirements)
   // Cart actions
   $('#cart-checkout-btn').addEventListener('click', handleCheckout);
   $('#cart-hold-btn').addEventListener('click', handleHold);

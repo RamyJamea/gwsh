@@ -45,18 +45,9 @@ function showTableActions(tableId) {
       <span class="badge ${t.is_available ? 'badge-success' : 'badge-danger'}">${t.is_available ? 'Available' : 'Occupied'}</span>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;">
-      <button class="btn btn-primary" id="table-toggle-avail">${t.is_available ? 'Mark Occupied' : 'Mark Available'}</button>
       ${isAdmin() ? `<button class="btn btn-danger" id="table-delete">Delete Table</button>` : ''}
     </div>
   `);
-  $('#table-toggle-avail').addEventListener('click', async () => {
-    try {
-      await api.patch(`/tables/${tableId}`, { is_available: !t.is_available });
-      closeModal();
-      toast('Table updated', 'success');
-      renderTables($('#content'));
-    } catch (err) { toast(err.message, 'error'); }
-  });
   if ($('#table-delete')) {
     $('#table-delete').addEventListener('click', async () => {
       const confirmed = await confirmAction(

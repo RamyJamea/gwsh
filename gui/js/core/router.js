@@ -16,7 +16,6 @@ const NAV_ADMIN = [
   { section: 'Overview' },
   { id: 'dashboard', label: 'Dashboard', icon: '<i data-lucide="bar-chart-2"></i>' },
   { section: 'POS' },
-  { id: 'orders', label: 'Active Orders', icon: '<i data-lucide="clipboard-list"></i>' },
   { id: 'tables', label: 'Tables', icon: '<i data-lucide="armchair"></i>' },
   { id: 'history', label: 'Order History', icon: '<i data-lucide="scroll-text"></i>' },
   { section: 'Management' },
