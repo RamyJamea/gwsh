@@ -435,7 +435,15 @@ function showUserForm(userId = null) {
       closeDrawer();
       toast(`User ${isEdit ? 'updated' : 'created'}`, 'success');
       refreshCurrentTab();
-    } catch (err) { toast(err.message, 'error'); }
+    } catch (err) { 
+      if (err.message.includes('UNIQUE constraint failed: users.username') || 
+          err.message.toLowerCase().includes('already exists') || 
+          err.message.includes('IntegrityError')) {
+        alertModal('Username Taken', 'A user with this username already exists. Please choose a different username.');
+      } else {
+        alertModal('Error', err.message);
+      }
+    }
   });
 }
 

@@ -53,6 +53,43 @@ async function confirmAction(title, message, options = {}) {
     }, 30);
   });
 }
+
+function alertModal(title, message) {
+  return new Promise((resolve) => {
+    const content = `
+      <div style="padding:32px 24px; text-align:center;">
+        <div style="font-size:3.5rem; margin-bottom:16px;">⚠️</div>
+        <h3 style="margin-bottom:8px;">${title}</h3>
+        <p style="color:#555; font-size:1rem; margin-bottom:28px; max-width:340px;">${message}</p>
+        <div style="display:flex; justify-content:center;">
+          <button id="alert-ok-btn" class="btn btn-primary" style="min-width: 120px;">OK</button>
+        </div>
+      </div>
+    `;
+
+    showModal(title, content);
+
+    setTimeout(() => {
+      const ok = document.getElementById('alert-ok-btn');
+      const closeBtn = document.getElementById('modal-close-btn');
+
+      const doResolve = () => {
+        closeModal();
+        resolve();
+      };
+
+      ok?.addEventListener('click', doResolve);
+      if (closeBtn) closeBtn.addEventListener('click', doResolve);
+      const overlay = document.getElementById('modal-overlay');
+      if (overlay) {
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) doResolve();
+        });
+      }
+    }, 30);
+  });
+}
+
 function formatMoney(n) {
   return parseFloat(n || 0).toFixed(2);
 }
