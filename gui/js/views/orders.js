@@ -203,36 +203,76 @@ async function showOrderDetail(orderId, defaultTab = null) {
       <!-- ITEMS (full products + extras) -->
       <div class="tab-content" id="tab-items">
         ${(() => {
-          // Use latest history snapshot (has correct names) or fall back to order
-          const latestHistory = historyData.length ? historyData[historyData.length - 1] : null;
-          const itemsToShow = latestHistory?.order_history_items || order.order_items || [];
+          let itemsToShow = [];
+          
+          if (canEdit) {
+             // For active orders, use the fresh order items instead of potentially stale history snapshot
+             itemsToShow = order.order_items || [];
+          } else {
+             // For completed orders, prefer the history snapshot since the data structure is permanently locked
+             const latestHistory = historyData.length ? historyData[historyData.length - 1] : null;
+             itemsToShow = latestHistory?.order_history_items || order.order_items || [];
+          }
 
           if (!itemsToShow.length) {
             return `<div class="empty-state"><p>No items in this order</p></div>`;
           }
 
+          // Aggregate visually
+          const aggregated = [];
+          itemsToShow.forEach(item => {
+             const extras = item.order_item_extras || item.extras || [];
+             const existing = aggregated.find(agg => {
+                if (agg.menu_item_id !== item.menu_item_id) return false;
+                if (agg.extras.length !== extras.length) return false;
+                const e1 = agg.extras.map(e => e.menu_item_extra_id || e.id).sort().join(',');
+                const e2 = extras.map(e => e.menu_item_extra_id || e.id).sort().join(',');
+                return e1 === e2;
+             });
+
+             if (existing) {
+                existing.quantity += item.quantity;
+                existing.total_price += (item.quantity * (item.price_at_time || item.price || 0));
+             } else {
+                let productName = item.menu_item_name;
+                if (!productName) {
+                  const mi = state.menuItems?.find(m => m.id === item.menu_item_id);
+                  productName = mi ? (mi._productName || `Item #${mi.id}`) : `Item #${item.menu_item_id || item.id}`;
+                }
+                aggregated.push({
+                   ...item,
+                   productName,
+                   extras,
+                   quantity: item.quantity || 1,
+                   total_price: ((item.quantity || 1) * (item.price_at_time || item.price || 0))
+                });
+             }
+          });
+
           return `
             <div style="max-height: 70vh; overflow-y: auto; padding-right: 8px;">
               <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem;">
-                ${itemsToShow.map(item => `
+                ${aggregated.map(agg => `
                   <li style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
                     <div style="flex: 1;">
                       <div style="display: flex; align-items: baseline; gap: 8px;">
-                        <span style="font-weight: 600; color: var(--text-main); font-size: 1.05rem;">${item.menu_item_name || `Item #${item.menu_item_id || item.id}`}</span>
-                        <span style="color: var(--text-muted); font-size: 0.9rem;">×${item.quantity}</span>
+                        <span style="font-weight: 600; color: var(--text-main); font-size: 1.05rem;">${agg.productName}</span>
                       </div>
-                      ${item.order_item_extras && item.order_item_extras.length ? `
+                      ${agg.extras.length ? `
                         <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">
-                          ${item.order_item_extras.map(e => `
+                          ${agg.extras.map(e => `
                             <span style="background: var(--bg-main); color: var(--text-muted); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; border: 1px solid var(--border);">
-                              + ${e.extra_name || e.name || `Extra #${e.menu_item_extra_id}`} ${e.quantity > 1 ? `(×${e.quantity})` : ''}
+                              + ${e.extra_name || e.name || `Extra #${e.menu_item_extra_id || e.id}`} ${e.quantity > 1 ? `(×${e.quantity})` : ''}
                             </span>
                           `).join('')}
                         </div>
                       ` : ''}
                     </div>
-                    <div class="tabular-nums font-bold" style="color: var(--text-main);">
-                      ${formatMoney(item.quantity * (item.price_at_time || item.price || 0))}
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                      <div class="tabular-nums font-bold" style="color: var(--text-main);">
+                        ${formatMoney(agg.total_price)}
+                      </div>
+                      <span style="color: var(--text-muted); font-size: 0.95rem; font-weight: 600;">Qty: ${agg.quantity}</span>
                     </div>
                   </li>
                 `).join('')}
@@ -443,16 +483,19 @@ async function loadDrawerAddItems(orderId) {
       return;
     }
 
-    const total = pendingItems.reduce((acc, pi) => acc + pi.price + (pi.extras || []).reduce((sc, e) => sc + e.price, 0), 0);
+    const total = pendingItems.reduce((acc, pi) => acc + ((pi.quantity || 1) * (pi.price + (pi.extras || []).reduce((sc, e) => sc + e.price, 0))), 0);
 
     listEl.innerHTML = pendingItems.map((pi, idx) => `
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; padding:10px; background:var(--bg-elevated); border-radius:6px; border:1px solid var(--border);">
         <div style="min-width:0; flex:1; display:flex; flex-direction:column; gap:2px;">
-          <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-main);">${pi.name}</strong>
-          ${pi.extras && pi.extras.length ? `<div class="text-sm text-muted">+ ${pi.extras.map(e => e.name).join(', ')}</div>` : ''}
+          <div style="display:flex; gap:6px; align-items:baseline;">
+            <span style="font-size:0.9rem; color:var(--text-muted);">×${pi.quantity || 1}</span>
+            <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-main);">${pi.name}</strong>
+          </div>
+          ${pi.extras && pi.extras.length ? `<div class="text-sm text-muted" style="padding-left:22px;">+ ${pi.extras.map(e => e.name).join(', ')}</div>` : ''}
         </div>
         <div style="display:flex; gap:12px; align-items:center; flex-shrink:0;">
-          <span class="tabular-nums font-bold" style="color:var(--brand-primary);">${formatMoney(pi.price + (pi.extras || []).reduce((sc, e) => sc + e.price, 0))}</span>
+          <span class="tabular-nums font-bold" style="color:var(--brand-primary);">${formatMoney((pi.quantity || 1) * (pi.price + (pi.extras || []).reduce((sc, e) => sc + e.price, 0)))}</span>
           <button class="btn-icon text-danger drawer-pending-remove" data-idx="${idx}" style="font-size:1.2rem; cursor:pointer; background:none; border:none; padding:4px;">✕</button>
         </div>
       </div>
@@ -479,7 +522,7 @@ async function loadDrawerAddItems(orderId) {
       const payload = {
         items: pendingItems.map(pi => ({
           menu_item_id: pi.id,
-          quantity: 1,
+          quantity: pi.quantity || 1,
           price_at_time: pi.price,
           extras: (pi.extras || []).map(e => ({
             menu_item_extra_id: e.id,
@@ -512,14 +555,25 @@ async function loadDrawerAddItems(orderId) {
     const mi = state.menuItems.find(m => m.id === menuItemId);
     if (!mi) return;
 
+    const addToPending = (miId, name, price, selectedExtras = []) => {
+      const existing = pendingItems.find(pi => 
+        pi.id === miId && 
+        JSON.stringify((pi.extras || []).map(e => e.id).sort()) === JSON.stringify(selectedExtras.map(e => e.id).sort())
+      );
+      if (existing) {
+        existing.quantity = (existing.quantity || 1) + 1;
+      } else {
+        pendingItems.push({ id: miId, name, price, quantity: 1, extras: selectedExtras });
+      }
+      updatePendingView();
+      const listEl = document.getElementById('drawer-pending-items-list');
+      if (listEl) listEl.scrollTop = listEl.scrollHeight;
+    };
+
     const hasExtras = !!(mi.menu_items_extras && mi.menu_items_extras.length);
 
     if (!hasExtras) {
-      pendingItems.push({ id: mi.id, name: mi._productName || `Item #${mi.id}`, price: mi.price, extras: [] });
-      updatePendingView();
-      // Scroll to bottom
-      const listEl = document.getElementById('drawer-pending-items-list');
-      if (listEl) listEl.scrollTop = listEl.scrollHeight;
+      addToPending(mi.id, mi._productName || `Item #${mi.id}`, mi.price, []);
       return;
     }
 
@@ -566,16 +620,14 @@ async function loadDrawerAddItems(orderId) {
       mainView.classList.remove('hidden');
       extrasView.classList.add('hidden');
       
-      pendingItems.push({ id: mi.id, name: mi._productName || `Item #${mi.id}`, price: mi.price, extras: selected });
-      updatePendingView();
+      addToPending(mi.id, mi._productName || `Item #${mi.id}`, mi.price, selected);
     });
 
     btnSkip.addEventListener('click', () => {
       mainView.classList.remove('hidden');
       extrasView.classList.add('hidden');
       
-      pendingItems.push({ id: mi.id, name: mi._productName || `Item #${mi.id}`, price: mi.price, extras: [] });
-      updatePendingView();
+      addToPending(mi.id, mi._productName || `Item #${mi.id}`, mi.price, []);
     });
 
     btnCancel.addEventListener('click', () => {
