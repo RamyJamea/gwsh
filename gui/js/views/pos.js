@@ -406,7 +406,7 @@ async function addProductWithExtras(menuItemId) {
   }).join('');
 
   showModal(`Add ${mi._productName} — Select Extras`, `
-    <div style="max-height:420px;overflow-y:auto;">
+    <div style="min-height:50vh; max-height:70vh; overflow-y:auto;">
       ${extrasHtml}
     </div>
     <div style="margin-top:20px;display:flex;gap:8px;">
@@ -460,7 +460,7 @@ function showSizeSelectionModal(productId) {
   }).join('');
 
   showModal(`Select size for ${mis[0]._productName}`, `
-    <div style="max-height:400px; overflow-y:auto; padding:8px;">
+    <div style="min-height:50vh; max-height:70vh; overflow-y:auto; padding:8px;">
       ${sizesHtml}
     </div>
   `);
@@ -769,7 +769,7 @@ async function addItemToHeldOrderWithExtras(orderId, menuItemId, onSuccess = nul
   }).join('');
 
   showModal(`Add ${mi._productName} to Order #${orderId} — Select Extras`, `
-    <div style="max-height:420px;overflow-y:auto;">
+    <div style="min-height:50vh; max-height:70vh; overflow-y:auto;">
       ${extrasHtml}
     </div>
     <div style="margin-top:20px;display:flex;gap:8px;">
@@ -854,7 +854,7 @@ async function showAddItemsToOrder(orderId, onSuccess = null) {
     }
 
     showModal(`Add Items to Order #${orderId}`, `
-      <div style="max-height:420px;overflow-y:auto;">
+      <div style="min-height:50vh; max-height:70vh; overflow-y:auto;">
         <div class="pos-search" style="margin-bottom:12px;">
           <input type="text" id="add-search-input" placeholder="Search products to add..." style="width:100%;">
         </div>

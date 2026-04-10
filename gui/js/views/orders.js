@@ -91,7 +91,7 @@ async function renderOrders(el) {
 
 
 
-async function showOrderDetail(orderId) {
+async function showOrderDetail(orderId, defaultTab = null) {
   try {
     const [order, historyData] = await Promise.all([
       api.get(`/orders/${orderId}`),
@@ -100,16 +100,6 @@ async function showOrderDetail(orderId) {
 
     const isActive = order.action === 'create' || order.action === 'update';
     const canEdit = isCashier() && isActive;
-
-    let actionsHtml = '';
-    if (canEdit) {
-      actionsHtml = `
-        <div class="cart-actions" style="display:flex; gap:10px; margin:1.5rem 0;">
-          <button id="detail-add-items" class="btn btn-outline" style="flex:1;">+ Add Items</button>
-          <button id="detail-cancel" class="btn btn-outline btn-danger" style="flex:1;">Cancel</button>
-          <button id="detail-checkout" class="btn btn-primary" style="flex:2;">Checkout</button>
-        </div>`;
-    }
 
     openDrawer(`Order #${orderId}`, `
       <div class="flex justify-between items-center mb-4">
@@ -123,7 +113,15 @@ async function showOrderDetail(orderId) {
         </button>` : ''}
       </div>
 
-      ${actionsHtml}
+      <div class="tabs" id="order-tabs" style="margin-bottom: 1.5rem;">
+        <div class="tab-item active" data-tab="summary">Summary</div>
+        <div class="tab-item" data-tab="items">Items</div>
+        ${canEdit ? `
+        <div class="tab-item" data-tab="add-items" style="color:var(--brand-primary);">+ Add Items</div>
+        <div class="tab-item" data-tab="checkout" style="color:var(--success);">Checkout</div>
+        ` : ''}
+        <div class="tab-item" data-tab="timeline">History</div>
+      </div>
 
       <!-- SUMMARY -->
       <div class="tab-content active" id="tab-summary">
@@ -151,6 +149,57 @@ async function showOrderDetail(orderId) {
         </div>
       </div>
 
+      ${canEdit ? `
+      <!-- ADD ITEMS TAB -->
+      <div class="tab-content" id="tab-add-items">
+        <div id="add-items-main-view" style="display:flex; flex-direction:column; height: 100%;">
+          <div class="pos-search" style="margin-bottom:12px; flex-shrink: 0;">
+            <input type="text" id="drawer-add-search-input" placeholder="Search products to add..." style="width:100%;">
+          </div>
+          <div id="drawer-add-product-grid" class="product-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); max-height: 40vh; overflow-y:auto; padding-right:8px; border-bottom: 2px dashed var(--border); padding-bottom: 12px; margin-bottom: 12px;">
+            <div class="loading-center"><div class="spinner"></div></div>
+          </div>
+          <div id="drawer-pending-items-container" style="flex: 1; min-height: 15vh; display:flex; flex-direction:column;">
+             <h4 style="margin-bottom: 8px;">Pending Additions</h4>
+             <div id="drawer-pending-items-list" style="overflow-y:auto; flex: 1; margin-bottom: 12px;"></div>
+             <button id="drawer-save-pending-btn" class="btn btn-success btn-lg w-full hidden">Save Items</button>
+          </div>
+        </div>
+        <div id="add-items-extras-view" class="hidden" style="background:#fff; border-radius:12px; padding:16px; border:1px solid var(--border);">
+           <h4 id="add-items-extras-title" style="margin-bottom:12px;">Select Extras</h4>
+           <div id="add-items-extras-list" style="margin-bottom:20px; max-height: 50vh; overflow-y:auto;"></div>
+           <div style="display:flex; gap:8px;">
+             <button id="add-items-confirm-extras" class="btn btn-primary w-full">Confirm & Add</button>
+             <button id="add-items-skip-extras" class="btn btn-outline w-full">Skip Extras</button>
+             <button id="add-items-cancel-extras" class="btn btn-ghost w-full">Cancel</button>
+           </div>
+        </div>
+      </div>
+
+      <!-- CHECKOUT TAB -->
+      <div class="tab-content" id="tab-checkout">
+        <div style="background:#f8f9fa; padding:20px; border-radius:12px;">
+          <h3 style="margin-bottom:16px;">Checkout Order</h3>
+          <div class="form-group">
+            <label style="font-weight:600;">Payment Method</label>
+            <select id="drawer-checkout-payment" style="width:100%; padding:12px; border-radius:8px; font-size:1.1rem;">
+              <option value="cash">💵 Cash</option>
+              <option value="card">💳 Card</option>
+            </select>
+          </div>
+          <div style="margin:24px 0; padding:16px; background:#fff; border-radius:12px; text-align:center; border: 1px solid var(--border);">
+            <div class="text-muted">Total to pay</div>
+            <div style="font-size:2rem; font-weight:800; color:var(--brand-primary);">${formatMoney(order.total_amount)}</div>
+          </div>
+          <button class="btn btn-success btn-lg w-full" id="drawer-confirm-checkout" style="margin-bottom: 24px;">✅ Confirm & Complete Order</button>
+          
+          <div style="border-top: 1px dashed var(--border); padding-top: 16px;">
+             <button class="btn btn-outline btn-danger w-full" id="drawer-cancel-order">Cancel Order</button>
+          </div>
+        </div>
+      </div>
+      ` : ''}
+
       <!-- ITEMS (full products + extras) -->
       <div class="tab-content" id="tab-items">
         ${(() => {
@@ -163,7 +212,7 @@ async function showOrderDetail(orderId) {
           }
 
           return `
-            <div style="max-height: 50vh; overflow-y: auto; padding-right: 8px;">
+            <div style="max-height: 70vh; overflow-y: auto; padding-right: 8px;">
               <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem;">
                 ${itemsToShow.map(item => `
                   <li style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
@@ -240,6 +289,9 @@ async function showOrderDetail(orderId) {
     `);
 
     setupTabs('order-tabs');
+    if (defaultTab) {
+      document.querySelector(`.tab-item[data-tab="${defaultTab}"]`)?.click();
+    }
 
     // Export button
     $('#drawer-export-excel')?.addEventListener('click', () => {
@@ -247,9 +299,22 @@ async function showOrderDetail(orderId) {
     });
 
     if (canEdit) {
-      $('#detail-add-items')?.addEventListener('click', () => showAddItemsToOrder(orderId, () => showOrderDetail(orderId)));
-      $('#detail-checkout')?.addEventListener('click', () => handleHeldCheckout(orderId));
-      $('#detail-cancel')?.addEventListener('click', async () => {
+      loadDrawerAddItems(orderId);
+
+      $('#drawer-confirm-checkout')?.addEventListener('click', async () => {
+        const payment = $('#drawer-checkout-payment').value;
+        try {
+          await api.post(`/orders/${orderId}/checkout`, { payment_method: payment });
+          await finalizeOrder(orderId);
+          closeDrawer();
+          toast('✅ Order paid successfully!', 'success');
+          renderPOS($('#content'));
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      });
+
+      $('#drawer-cancel-order')?.addEventListener('click', async () => {
         const confirmed = await confirmAction('Cancel Order', `Cancel Order #${orderId}?`, { danger: true });
         if (!confirmed) return;
         await api.post(`/orders/${orderId}/cancel`, {});
@@ -297,4 +362,225 @@ function attachOrderItemListeners(orderId) {
       await refreshItemsTab();
     });
   });
+}
+
+// ── NEW: Inline Drawer Add Items logic ──
+async function loadDrawerAddItems(orderId) {
+  const bid = state.selectedBranch;
+  if (!bid) return;
+
+  const grid = document.getElementById('drawer-add-product-grid');
+  const searchInput = document.getElementById('drawer-add-search-input');
+  
+  const mainView = document.getElementById('add-items-main-view');
+  const extrasView = document.getElementById('add-items-extras-view');
+
+  try {
+    if (!state.menuItems?.length || !state.menuItems[0]?.menu_items_extras) {
+      state.menuItems = await api.get(`/menu-items/branch/${bid}`);
+      if (typeof enrichMenuItems === 'function') await enrichMenuItems();
+
+      for (const mi of state.menuItems) {
+        try {
+          const detail = await api.get(`/menu-items/${mi.id}`);
+          mi.menu_items_extras = detail.menu_items_extras || [];
+        } catch (e) {
+          mi.menu_items_extras = [];
+        }
+      }
+    }
+
+    function renderGrid(items) {
+      if (!items.length) {
+        grid.innerHTML = '<div class="empty-state"><p>No items found</p></div>';
+        return;
+      }
+      grid.innerHTML = items.map(mi => `
+        <div class="product-card" data-mi-id="${mi.id}">
+          <div class="product-img-placeholder">${(mi._productName || 'I')[0]}</div>
+          <div class="product-card-body">
+            <div class="product-name">${mi._productName || 'Item'}</div>
+            <div class="product-size">${mi._sizeName || ''}</div>
+            <div class="product-price">${formatMoney(mi.price)}</div>
+            ${mi.menu_items_extras && mi.menu_items_extras.length ?
+            `<div class="product-extras">+${mi.menu_items_extras.length} extras</div>` : ''}
+          </div>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.product-card').forEach(card => {
+        card.addEventListener('click', async () => {
+          const miId = parseInt(card.dataset.miId);
+          handleDrawerItemClick(orderId, miId);
+        });
+      });
+    }
+
+    renderGrid(state.menuItems);
+
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      const filtered = state.menuItems.filter(mi =>
+        (mi._productName || '').toLowerCase().includes(q) ||
+        (mi._sizeName || '').toLowerCase().includes(q)
+      );
+      renderGrid(filtered);
+    });
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+
+  let pendingItems = [];
+
+  const updatePendingView = () => {
+    const listEl = document.getElementById('drawer-pending-items-list');
+    const btnEl = document.getElementById('drawer-save-pending-btn');
+    if (!listEl || !btnEl) return;
+
+    if (pendingItems.length === 0) {
+      listEl.innerHTML = '<div class="text-muted text-sm" style="padding: 12px 0;">No items selected yet. Click products above to stage them.</div>';
+      btnEl.classList.add('hidden');
+      return;
+    }
+
+    const total = pendingItems.reduce((acc, pi) => acc + pi.price + (pi.extras || []).reduce((sc, e) => sc + e.price, 0), 0);
+
+    listEl.innerHTML = pendingItems.map((pi, idx) => `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; padding:10px; background:var(--bg-elevated); border-radius:6px; border:1px solid var(--border);">
+        <div style="min-width:0; flex:1; display:flex; flex-direction:column; gap:2px;">
+          <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-main);">${pi.name}</strong>
+          ${pi.extras && pi.extras.length ? `<div class="text-sm text-muted">+ ${pi.extras.map(e => e.name).join(', ')}</div>` : ''}
+        </div>
+        <div style="display:flex; gap:12px; align-items:center; flex-shrink:0;">
+          <span class="tabular-nums font-bold" style="color:var(--brand-primary);">${formatMoney(pi.price + (pi.extras || []).reduce((sc, e) => sc + e.price, 0))}</span>
+          <button class="btn-icon text-danger drawer-pending-remove" data-idx="${idx}" style="font-size:1.2rem; cursor:pointer; background:none; border:none; padding:4px;">✕</button>
+        </div>
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('.drawer-pending-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pendingItems.splice(parseInt(btn.dataset.idx), 1);
+        updatePendingView();
+      });
+    });
+
+    btnEl.textContent = `Save ${pendingItems.length} Item${pendingItems.length > 1 ? 's' : ''} (${formatMoney(total)})`;
+    btnEl.classList.remove('hidden');
+  };
+
+  const btnSave = document.getElementById('drawer-save-pending-btn');
+  if (btnSave) {
+    const newBtnSave = btnSave.cloneNode(true);
+    btnSave.parentNode.replaceChild(newBtnSave, btnSave);
+    newBtnSave.addEventListener('click', async () => {
+      if (pendingItems.length === 0) return;
+      
+      const payload = {
+        items: pendingItems.map(pi => ({
+          menu_item_id: pi.id,
+          quantity: 1,
+          price_at_time: pi.price,
+          extras: (pi.extras || []).map(e => ({
+            menu_item_extra_id: e.id,
+            quantity: 1,
+            price_at_time: e.price
+          }))
+        }))
+      };
+
+      try {
+        newBtnSave.disabled = true;
+        newBtnSave.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;display:inline-block;"></div>';
+        await api.post(`/orders/${orderId}/items`, payload);
+        toast('✅ Items added successfully', 'success');
+        if (typeof showOrderDetail === 'function') {
+            showOrderDetail(orderId, 'items');
+        }
+      } catch (err) {
+        toast(err.message, 'error');
+        newBtnSave.disabled = false;
+        newBtnSave.textContent = 'Save Items...'; // Reset on fail
+      }
+    });
+  }
+
+  // Initial call
+  updatePendingView();
+
+  function handleDrawerItemClick(orderId, menuItemId) {
+    const mi = state.menuItems.find(m => m.id === menuItemId);
+    if (!mi) return;
+
+    const hasExtras = !!(mi.menu_items_extras && mi.menu_items_extras.length);
+
+    if (!hasExtras) {
+      pendingItems.push({ id: mi.id, name: mi._productName || `Item #${mi.id}`, price: mi.price, extras: [] });
+      updatePendingView();
+      // Scroll to bottom
+      const listEl = document.getElementById('drawer-pending-items-list');
+      if (listEl) listEl.scrollTop = listEl.scrollHeight;
+      return;
+    }
+
+    // Has extras -> show extras inline view
+    mainView.classList.add('hidden');
+    extrasView.classList.remove('hidden');
+
+    document.getElementById('add-items-extras-title').textContent = `Select Extras for ${mi._productName || 'Item'}`;
+    
+    let extrasHtml = mi.menu_items_extras.map(ex => {
+      const name = ex.name ||
+        (state.extras && state.extras.find(e => e.id === (ex.extra_id || ex.id))
+          ? state.extras.find(e => e.id === (ex.extra_id || ex.id)).name
+          : `Extra #${ex.id}`);
+      return `
+        <label style="display:flex; justify-content:space-between; padding:12px; border-bottom:1px solid var(--border); cursor:pointer;" class="drawer-extra-label">
+          <div>
+            <input type="checkbox" class="drawer-extra-check" data-id="${ex.id}" data-price="${ex.price}" data-name="${name}">
+            <span style="margin-left:8px; font-weight:500;">${name}</span>
+          </div>
+          <span class="text-sm text-muted">+${formatMoney(ex.price)}</span>
+        </label>`;
+    }).join('');
+
+    document.getElementById('add-items-extras-list').innerHTML = extrasHtml;
+
+    const oldConfirm = document.getElementById('add-items-confirm-extras');
+    const oldSkip = document.getElementById('add-items-skip-extras');
+    const oldCancel = document.getElementById('add-items-cancel-extras');
+    
+    const btnConfirm = oldConfirm.cloneNode(true);
+    const btnSkip = oldSkip.cloneNode(true);
+    const btnCancel = oldCancel.cloneNode(true);
+    
+    oldConfirm.parentNode.replaceChild(btnConfirm, oldConfirm);
+    oldSkip.parentNode.replaceChild(btnSkip, oldSkip);
+    oldCancel.parentNode.replaceChild(btnCancel, oldCancel);
+
+    btnConfirm.addEventListener('click', () => {
+      const selected = [];
+      document.querySelectorAll('#add-items-extras-list .drawer-extra-check:checked').forEach(chk => {
+        selected.push({ id: parseInt(chk.dataset.id), name: chk.dataset.name, price: parseFloat(chk.dataset.price) });
+      });
+      mainView.classList.remove('hidden');
+      extrasView.classList.add('hidden');
+      
+      pendingItems.push({ id: mi.id, name: mi._productName || `Item #${mi.id}`, price: mi.price, extras: selected });
+      updatePendingView();
+    });
+
+    btnSkip.addEventListener('click', () => {
+      mainView.classList.remove('hidden');
+      extrasView.classList.add('hidden');
+      
+      pendingItems.push({ id: mi.id, name: mi._productName || `Item #${mi.id}`, price: mi.price, extras: [] });
+      updatePendingView();
+    });
+
+    btnCancel.addEventListener('click', () => {
+      mainView.classList.remove('hidden');
+      extrasView.classList.add('hidden');
+    });
+  }
 }
