@@ -748,6 +748,7 @@ async function addItemToHeldOrderWithExtras(orderId, menuItemId, onSuccess = nul
 
   if (!hasExtras) {
     await addItemToHeldOrder(orderId, menuItemId, [], onSuccess);
+    toast(`✅ Added ${mi._productName}`, 'success');
     return;
   }
 
@@ -781,18 +782,20 @@ async function addItemToHeldOrderWithExtras(orderId, menuItemId, onSuccess = nul
     const confirmBtn = document.getElementById('confirm-extras-held-btn');
     const skipBtn = document.getElementById('skip-extras-held-btn');
 
-    confirmBtn.addEventListener('click', () => {
+    confirmBtn.addEventListener('click', async () => {
       const selected = [];
       document.querySelectorAll('#modal-container .extra-check:checked').forEach(chk => {
         selected.push({ id: parseInt(chk.dataset.id), name: chk.dataset.name, price: parseFloat(chk.dataset.price) });
       });
-      closeModal();
-      addItemToHeldOrder(orderId, menuItemId, selected, onSuccess);
+      await addItemToHeldOrder(orderId, menuItemId, selected, onSuccess);
+      toast(`✅ Added ${mi._productName} with extras`, 'success');
+      showAddItemsToOrder(orderId, onSuccess); // Reopen the search modal to continue adding
     });
 
-    skipBtn.addEventListener('click', () => {
-      closeModal();
-      addItemToHeldOrder(orderId, menuItemId, [], onSuccess);
+    skipBtn.addEventListener('click', async () => {
+      await addItemToHeldOrder(orderId, menuItemId, [], onSuccess);
+      toast(`✅ Added ${mi._productName}`, 'success');
+      showAddItemsToOrder(orderId, onSuccess); // Reopen the search modal to continue adding
     });
   }, 10);
 }
@@ -881,10 +884,13 @@ async function showAddItemsToOrder(orderId, onSuccess = null) {
       `).join('');
 
       grid.querySelectorAll('.product-card').forEach(card => {
-        card.addEventListener('click', () => {
+        card.addEventListener('click', async () => {
           const miId = parseInt(card.dataset.miId);
-          // Now correctly passes the callback
-          addItemToHeldOrderWithExtras(orderId, miId, onSuccess);
+          // Visual feedback click
+          card.style.opacity = '0.5';
+          setTimeout(() => card.style.opacity = '1', 200);
+          
+          await addItemToHeldOrderWithExtras(orderId, miId, onSuccess);
         });
       });
     }

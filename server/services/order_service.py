@@ -141,6 +141,9 @@ class OrderService(BaseService):
         self._validate_items(items_in)
         self._create_order_items(order.id, items_in)
 
+        self.session.flush()
+        
+        self.session.expire_all()
         order = self.repo.get_order_with_details(order_id)
         order.total_amount = self._recalculate_order_total(order)
 
@@ -239,6 +242,10 @@ class OrderService(BaseService):
             raise HTTPException(status_code=404, detail="Order item not found")
 
         item.quantity = quantity
+        self.session.flush()
+        
+        self.session.expire_all()
+        order = self.repo.get_order_with_details(order_id)
         order.total_amount = self._recalculate_order_total(order)
 
         self.history_service.create_snapshot(order, cashier_id, ActionEnum.UPDATE)
@@ -254,7 +261,9 @@ class OrderService(BaseService):
             raise HTTPException(status_code=404, detail="Order item not found")
 
         self.order_item_repo.delete(order_item_id)
+        self.session.flush()
 
+        self.session.expire_all()
         order = self.repo.get_order_with_details(order_id)
         order.total_amount = self._recalculate_order_total(order)
 

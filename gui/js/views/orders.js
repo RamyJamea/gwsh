@@ -104,126 +104,138 @@ async function showOrderDetail(orderId) {
     let actionsHtml = '';
     if (canEdit) {
       actionsHtml = `
-        <div class="cart-actions" style="flex-direction:row; padding:0; background:transparent; margin:1.5rem 0; box-shadow:none;">
-          <button id="detail-add-items" class="btn btn-outline" style="flex:1;">Add Items</button>
-          <button id="detail-checkout" class="btn btn-primary" style="flex:1;">Checkout</button>
-          <button id="detail-cancel" class="btn btn-danger" style="flex:1;">Cancel</button>
+        <div class="cart-actions" style="display:flex; gap:10px; margin:1.5rem 0;">
+          <button id="detail-add-items" class="btn btn-outline" style="flex:1;">+ Add Items</button>
+          <button id="detail-cancel" class="btn btn-outline btn-danger" style="flex:1;">Cancel</button>
+          <button id="detail-checkout" class="btn btn-primary" style="flex:2;">Checkout</button>
         </div>`;
     }
 
-    openDrawer(`Order #${orderId} — ${isActive ? 'Active' : 'Completed'}`, `
+    openDrawer(`Order #${orderId}`, `
       <div class="flex justify-between items-center mb-4">
-        <h3 class="mb-0">Order #${orderId}</h3>
+        <div>
+          <h3 class="mb-1" style="font-size: 1.5rem; color: var(--text-main);">Order #${orderId}</h3>
+          <span class="text-sm text-muted">${isActive ? 'Active Order' : 'Completed Order'}</span>
+        </div>
         ${isAdmin() ? `
-        <button id="drawer-export-excel" class="btn btn-success">
-          📥 Export History (Excel)
+        <button id="drawer-export-excel" class="btn btn-sm btn-outline">
+          📥 Export Excel
         </button>` : ''}
       </div>
 
       ${actionsHtml}
 
-      <div class="tabs" id="order-tabs">
-        <div class="tab-item active" data-tab="summary">Summary</div>
-        <div class="tab-item" data-tab="items">Items</div>
-        <div class="tab-item" data-tab="timeline">History (Detailed)</div>
-      </div>
-
       <!-- SUMMARY -->
       <div class="tab-content active" id="tab-summary">
-        <div class="card">
-          <div class="card-body">
-            <p><strong>Table:</strong> ${order.table_id ? `T${order.table_id}` : 'Walk-in / Takeaway'}</p>
-            <p><strong>Status:</strong> <span class="badge badge-${actionBadge(order.action)}">${order.action}</span></p>
-            <p><strong>Payment:</strong> ${order.payment_method || '—'}</p>
-            <p><strong>Total:</strong> <span class="tabular-nums font-bold">${formatMoney(order.total_amount)}</span></p>
-            <p><strong>Created:</strong> ${formatDate(order.created_at)}</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; background: var(--bg-elevated); padding: 1.5rem; border-radius: var(--radius-md);">
+          <div>
+            <div class="text-sm text-muted mb-1">Table / Type</div>
+            <div style="font-weight: 500; color: var(--text-main);">${order.table_id ? `T${order.table_id}` : 'Walk-in / Takeaway'}</div>
+          </div>
+          <div>
+            <div class="text-sm text-muted mb-1">Status</div>
+            <div><span class="badge badge-${actionBadge(order.action)}">${order.action}</span></div>
+          </div>
+          <div>
+            <div class="text-sm text-muted mb-1">Payment Method</div>
+            <div style="font-weight: 500; color: var(--text-main);">${order.payment_method || '—'}</div>
+          </div>
+          <div>
+            <div class="text-sm text-muted mb-1">Created At</div>
+            <div style="font-weight: 500; color: var(--text-main);">${formatDate(order.created_at)}</div>
+          </div>
+          <div style="grid-column: span 2; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <div class="text-muted">Total Amount</div>
+            <div class="tabular-nums font-bold" style="font-size: 1.5rem; color: var(--brand-primary);">${formatMoney(order.total_amount)}</div>
           </div>
         </div>
       </div>
 
       <!-- ITEMS (full products + extras) -->
-<div class="tab-content" id="tab-items">
-  ${(() => {
-        // Use latest history snapshot (has correct names) or fall back to order
-        const latestHistory = historyData.length ? historyData[historyData.length - 1] : null;
-        const itemsToShow = latestHistory?.order_history_items || order.order_items || [];
+      <div class="tab-content" id="tab-items">
+        ${(() => {
+          // Use latest history snapshot (has correct names) or fall back to order
+          const latestHistory = historyData.length ? historyData[historyData.length - 1] : null;
+          const itemsToShow = latestHistory?.order_history_items || order.order_items || [];
 
-        if (!itemsToShow.length) {
-          return `<div class="empty-state"><p>No items in this order</p></div>`;
-        }
+          if (!itemsToShow.length) {
+            return `<div class="empty-state"><p>No items in this order</p></div>`;
+          }
 
-        return `
-      <div class="cart-items" style="max-height:420px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:0;">
-        ${itemsToShow.map(item => `
-          <div class="card" style="margin-bottom:0; box-shadow:none;">
-            <div class="card-body" style="padding:1rem;">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div>
-                  <strong style="font-size:1.1rem; color:var(--text-main);">${item.menu_item_name || `Item #${item.menu_item_id || item.id}`}</strong>
-                  <div style="margin-top:4px; color:var(--text-muted); font-weight:600;">× ${item.quantity} 
-                    <span style="font-weight:400; font-size:0.85rem;">(@ ${formatMoney(item.price_at_time || item.price || 0)})</span>
-                  </div>
-                </div>
-                <div class="tabular-nums font-bold" style="font-size:1.1rem; color:var(--brand-primary);">
-                  ${formatMoney(item.quantity * (item.price_at_time || item.price || 0))}
-                </div>
-              </div>
-              
-              ${item.order_item_extras && item.order_item_extras.length ? `
-                <div style="margin-top:12px; padding:10px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-md); font-size:0.85rem;">
-                  <strong style="color:var(--text-muted);">Extras:</strong>
-                  ${item.order_item_extras.map(e =>
-            `${e.extra_name || e.name || `Extra #${e.menu_item_extra_id}`}${e.quantity > 1 ? ` <span class="badge badge-info" style="font-size:0.7rem; padding:0.1rem 0.4rem;">×${e.quantity}</span>` : ''}`
-          ).join(' • ')}
-                </div>` : ''}
-            </div>
-          </div>
-        `).join('')}
-      </div>`;
-      })()}
-</div>
-
-
-      <!-- DETAILED HISTORY TIMELINE (NEW) -->
-      <div class="tab-content" id="tab-timeline">
-        ${historyData.length ? historyData.map(h => `
-          <div class="history-entry card" style="margin-bottom:1rem; box-shadow:none;">
-            <div class="card-body" style="padding:1rem;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px dashed var(--border); padding-bottom:12px;">
-                <div>
-                  <strong style="color:var(--text-main); font-size:1.05rem;">${formatDate(h.timestamp)}</strong>
-                  <span class="badge badge-${actionBadge(h.action)}" style="margin-left:8px;">${h.action}</span>
-                </div>
-                <div class="text-sm">
-                  by <strong style="color:var(--brand-primary);">${h.cashier_name || 'Unknown'}</strong>
-                </div>
-                <div class="tabular-nums font-bold" style="font-size:1.1rem;">
-                  ${formatMoney(h.total_amount_at_time)}
-                </div>
-              </div>
-
-              <!-- Items + Extras for this snapshot -->
-              <div style="display:flex; flex-direction:column; gap:8px;">
-                ${h.order_history_items && h.order_history_items.length ?
-            h.order_history_items.map(item => `
-                    <div style="padding:10px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:0.9rem; display:flex; flex-direction:column;">
-                      <div style="display:flex; justify-content:space-between;">
-                        <span><strong style="color:var(--text-main);">${item.menu_item_name}</strong> <span style="color:var(--text-muted); font-weight:600;">× ${item.quantity}</span></span>
-                        <span class="tabular-nums font-bold" style="color:var(--brand-primary);">${formatMoney(item.price_at_time)}</span>
+          return `
+            <div style="max-height: 50vh; overflow-y: auto; padding-right: 8px;">
+              <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem;">
+                ${itemsToShow.map(item => `
+                  <li style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
+                    <div style="flex: 1;">
+                      <div style="display: flex; align-items: baseline; gap: 8px;">
+                        <span style="font-weight: 600; color: var(--text-main); font-size: 1.05rem;">${item.menu_item_name || `Item #${item.menu_item_id || item.id}`}</span>
+                        <span style="color: var(--text-muted); font-size: 0.9rem;">×${item.quantity}</span>
                       </div>
                       ${item.order_item_extras && item.order_item_extras.length ? `
-                        <div style="margin-top:6px; font-size:0.85rem; color:var(--text-muted);">
-                          <strong style="color:var(--text-main);">Extras:</strong> ${item.order_item_extras.map(e =>
-              `${e.extra_name}${e.quantity > 1 ? ` ×${e.quantity}` : ''}`
-            ).join(', ')}
-                        </div>` : ''}
+                        <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">
+                          ${item.order_item_extras.map(e => `
+                            <span style="background: var(--bg-main); color: var(--text-muted); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; border: 1px solid var(--border);">
+                              + ${e.extra_name || e.name || `Extra #${e.menu_item_extra_id}`} ${e.quantity > 1 ? `(×${e.quantity})` : ''}
+                            </span>
+                          `).join('')}
+                        </div>
+                      ` : ''}
                     </div>
-                  `).join('') :
-            '<div class="text-muted" style="text-align:center; padding:10px;">No items in this snapshot</div>'}
+                    <div class="tabular-nums font-bold" style="color: var(--text-main);">
+                      ${formatMoney(item.quantity * (item.price_at_time || item.price || 0))}
+                    </div>
+                  </li>
+                `).join('')}
+              </ul>
+            </div>`;
+        })()}
+      </div>
+
+      <!-- DETAILED HISTORY TIMELINE -->
+      <div class="tab-content" id="tab-timeline">
+        ${historyData.length ? `
+          <div style="margin-left: 8px; border-left: 2px solid var(--border); padding-left: 24px; display: flex; flex-direction: column; gap: 2rem; position: relative;">
+            ${historyData.map((h, i) => `
+              <div style="position: relative;">
+                <!-- Timeline dot -->
+                <div style="position: absolute; left: -31px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--brand-primary); border: 2px solid var(--bg-main);"></div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                      <span class="badge badge-${actionBadge(h.action)}">${h.action}</span>
+                      <span style="color: var(--text-muted); font-size: 0.85rem;">by ${h.cashier_name || 'System'}</span>
+                    </div>
+                    <div style="color: var(--text-main); font-weight: 500; font-size: 0.95rem;">${formatDate(h.timestamp)}</div>
+                  </div>
+                  <div class="tabular-nums font-bold" style="color: var(--text-main);">
+                    ${formatMoney(h.total_amount_at_time)}
+                  </div>
+                </div>
+
+                ${h.order_history_items && h.order_history_items.length ? `
+                  <div style="background: var(--bg-elevated); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                    ${h.order_history_items.map(item => `
+                      <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                        <div>
+                          <span style="color: var(--text-main);">${item.menu_item_name}</span>
+                          <span style="color: var(--text-muted);"> ×${item.quantity}</span>
+                          ${item.order_item_extras && item.order_item_extras.length ? `
+                            <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2px;">
+                              ${item.order_item_extras.map(e => `+ ${e.extra_name}${e.quantity > 1 ? `(×${e.quantity})` : ''}`).join(', ')}
+                            </div>
+                          ` : ''}
+                        </div>
+                        <span class="tabular-nums" style="color: var(--text-muted);">${formatMoney(item.price_at_time)}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : '<div class="text-muted text-sm mt-2">No items</div>'}
               </div>
-            </div>
+            `).join('')}
           </div>
-        `).join('') : `<div class="empty-state" style="margin-top:2rem;"><p>No history recorded yet.</p></div>`}
+        ` : `<div class="empty-state"><p>No history recorded yet.</p></div>`}
       </div>
     `);
 

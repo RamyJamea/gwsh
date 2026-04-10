@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from .branch_model import Branch, RestaurantTable
     from .user_model import User
     from .history_model import OrderHistory
-    from .menu_model import MenuItem
+    from .menu_model import MenuItem, MenuItemExtra
 
 
 class Order(Base, AuditMixin):
@@ -57,3 +57,4 @@ class OrderItemExtra(Base, AuditMixin):
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
     order_item: Mapped["OrderItem"] = relationship(back_populates="order_item_extras")
+    menu_item_extra: Mapped["MenuItemExtra"] = relationship()

@@ -14,7 +14,9 @@ class Product(Base, AuditMixin):
     name: Mapped[str]
 
     category: Mapped["Category"] = relationship(back_populates="products")
-    menu_items: Mapped[list["MenuItem"]] = relationship(back_populates="product")
+    menu_items: Mapped[list["MenuItem"]] = relationship(
+        back_populates="product", cascade="all, delete-orphan"
+    )
 
 
 class Category(Base, AuditMixin):
@@ -22,7 +24,9 @@ class Category(Base, AuditMixin):
 
     name: Mapped[str]
 
-    products: Mapped[list["Product"]] = relationship(back_populates="category")
+    products: Mapped[list["Product"]] = relationship(
+        back_populates="category", cascade="all, delete-orphan"
+    )
 
 
 class Extra(Base, AuditMixin):
@@ -31,7 +35,7 @@ class Extra(Base, AuditMixin):
     name: Mapped[str]
 
     menu_item_extras: Mapped[list["MenuItemExtra"]] = relationship(
-        back_populates="extra"
+        back_populates="extra", cascade="all, delete-orphan"
     )
 
 
@@ -40,4 +44,6 @@ class Size(Base, AuditMixin):
 
     name: Mapped[str]
 
-    menu_items: Mapped[list["MenuItem"]] = relationship(back_populates="size")
+    menu_items: Mapped[list["MenuItem"]] = relationship(
+        back_populates="size", cascade="all, delete-orphan"
+    )

@@ -30,20 +30,30 @@ class OrderHistoryService(BaseService):
         )
 
         for order_item in order.order_items:
+            menu_item_name_str = f"MenuItem #{order_item.menu_item_id}"
+            if order_item.menu_item and order_item.menu_item.product and order_item.menu_item.size:
+                menu_item_name_str = f"{order_item.menu_item.product.name} ({order_item.menu_item.size.name})"
+
             history_item = self.history_item_repo.create(
                 {
                     "order_history_id": history.id,
                     "menu_item_id": order_item.menu_item_id,
+                    "menu_item_name": menu_item_name_str,
                     "quantity": order_item.quantity,
                     "price_at_time": order_item.price_at_time,
                 }
             )
 
             for order_item_extra in order_item.order_item_extras:
+                extra_name_str = f"Extra #{order_item_extra.menu_item_extra_id}"
+                if order_item_extra.menu_item_extra and order_item_extra.menu_item_extra.extra:
+                    extra_name_str = order_item_extra.menu_item_extra.extra.name
+
                 self.history_item_extra_repo.create(
                     {
                         "order_history_item_id": history_item.id,
                         "menu_item_extra_id": order_item_extra.menu_item_extra_id,
+                        "extra_name": extra_name_str,
                         "quantity": order_item_extra.quantity,
                         "price_at_time": order_item_extra.price_at_time,
                     }
@@ -96,10 +106,8 @@ class OrderHistoryService(BaseService):
             }
 
             for item in h.order_history_items:
-                # ✅ Now always safe – no more fallback needed
-                item_name = (
-                    f"{item.menu_item.product.name} ({item.menu_item.size.name})"
-                )
+                # ✅ Using the stored snapshot name directly
+                item_name = item.menu_item_name or f"MenuItem #{item.menu_item_id} (Deleted)"
 
                 # Main item row
                 row = hist_meta.copy()
@@ -116,7 +124,7 @@ class OrderHistoryService(BaseService):
 
                 # Extra rows
                 for extra in item.order_item_extras:
-                    extra_name = extra.menu_item_extra.extra.name  # ✅ always safe now
+                    extra_name = extra.extra_name or f"Extra #{extra.menu_item_extra_id} (Deleted)"
 
                     extra_row = hist_meta.copy()
                     extra_row.update(
@@ -255,10 +263,8 @@ class OrderHistoryService(BaseService):
             }
 
             for item in h.order_history_items:
-                # ✅ Always safe now
-                item_name = (
-                    f"{item.menu_item.product.name} ({item.menu_item.size.name})"
-                )
+                # ✅ Using the stored snapshot name directly
+                item_name = item.menu_item_name or f"MenuItem #{item.menu_item_id} (Deleted)"
 
                 row = hist_meta.copy()
                 row.update(
@@ -273,7 +279,7 @@ class OrderHistoryService(BaseService):
                 items_data.append(row)
 
                 for extra in item.order_item_extras:
-                    extra_name = extra.menu_item_extra.extra.name  # ✅ safe
+                    extra_name = extra.extra_name or f"Extra #{extra.menu_item_extra_id} (Deleted)"
 
                     extra_row = hist_meta.copy()
                     extra_row.update(

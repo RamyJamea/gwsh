@@ -94,6 +94,15 @@ async function enterApp() {
     if (state.user.branch_id) state.selectedBranch = state.user.branch_id;
   }
 
+  // Show detailed menu button if branch is assigned
+  const viewMenuBtn = $('#view-detailed-menu-btn');
+  if (state.selectedBranch) {
+    viewMenuBtn.classList.remove('hidden');
+    viewMenuBtn.onclick = () => showDetailedBranchMenu(state.selectedBranch);
+  } else {
+    viewMenuBtn.classList.add('hidden');
+  }
+
   buildSidebar();
   navigate('dashboard');
 }

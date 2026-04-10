@@ -39,6 +39,7 @@ class OrderHistoryItem(Base, AuditMixin):
         ForeignKey("order_histories.id", ondelete="CASCADE")
     )
     menu_item_id: Mapped[int] = mapped_column(ForeignKey("menu_items.id"))
+    menu_item_name: Mapped[str] = mapped_column(nullable=True)
     quantity: Mapped[int]
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
@@ -60,6 +61,7 @@ class OrderHistoryItemExtra(Base, AuditMixin):
         ForeignKey("order_history_items.id", ondelete="CASCADE")
     )
     menu_item_extra_id: Mapped[int] = mapped_column(ForeignKey("menu_items_extras.id"))
+    extra_name: Mapped[str] = mapped_column(nullable=True)
     quantity: Mapped[int]
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 

@@ -60,10 +60,13 @@
     <main class="main-area">
       <!-- TOP BAR -->
       <header class="topbar glass-bar" id="main-topbar">
-        <div class="topbar-left">
+        <div class="topbar-left" style="display:flex; align-items:center; gap:12px;">
           <div id="branch-selector" class="branch-selector hidden">
             <select id="branch-select" class="glass-select"></select>
           </div>
+          <button id="view-detailed-menu-btn" class="btn btn-sm btn-outline hidden" style="border-radius:20px; align-self:center;">
+             <span style="font-size:1.1rem; margin-right:4px;">📜</span> Detailed Menu
+          </button>
         </div>
         <div class="topbar-right">
           <div class="user-pill" id="topbar-user"></div>
