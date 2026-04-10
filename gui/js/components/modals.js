@@ -2,7 +2,7 @@
 // ── Modal / Drawer / Tabs ───────────────────────────────────
 function showModal(title, content) {
   html($('#modal-container'), `
-    <div class="modal-header"><h3>${title}</h3><button class="btn btn-ghost btn-icon" id="modal-close-btn">✕</button></div>
+    <div class="modal-header"><h3>${title}</h3><button class="btn btn-ghost btn-icon" id="modal-close-btn"><i data-lucide="x"></i></button></div>
     <div class="modal-body">${content}</div>
   `);
   show($('#modal-overlay'));

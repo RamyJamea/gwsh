@@ -1,7 +1,14 @@
 // ── Utility ─────────────────────────────────────────────────
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
-const html = (el, h) => { el.innerHTML = h; };
+function renderIcons() {
+  if (window.lucide) window.lucide.createIcons();
+}
+
+const html = (el, h) => { 
+  el.innerHTML = h; 
+  renderIcons();
+};
 const show = (el) => el.classList.remove('hidden');
 const hide = (el) => el.classList.add('hidden');
 
@@ -9,8 +16,9 @@ function toast(msg, type = 'success') {
   const c = $('#toast-container');
   const t = document.createElement('div');
   t.className = `toast ${type}`;
-  t.textContent = msg;
+  t.innerHTML = msg;
   c.appendChild(t);
+  renderIcons();
   setTimeout(() => t.remove(), 3500);
 }
 // ── ENHANCED CONFIRM POP-UP (replaces all native confirm()) ─────────────────────
@@ -20,7 +28,9 @@ async function confirmAction(title, message, options = {}) {
   return new Promise((resolve) => {
     const content = `
       <div style="padding:32px 24px; text-align:center;">
-        <div style="font-size:3.5rem; margin-bottom:16px;">${danger ? '⚠️' : '❓'}</div>
+        <div style="margin-bottom:16px; display:flex; justify-content:center; color:${danger ? 'var(--danger)' : 'var(--brand-primary)'};">
+          <i data-lucide="${danger ? 'triangle-alert' : 'help-circle'}" style="width:48px; height:48px;"></i>
+        </div>
         <h3 style="margin-bottom:8px;">${title}</h3>
         <p style="color:#555; font-size:1rem; margin-bottom:28px; max-width:340px;">${message}</p>
         <div style="display:flex; gap:16px; justify-content:center;">
@@ -31,6 +41,7 @@ async function confirmAction(title, message, options = {}) {
     `;
 
     showModal(title, content);
+    renderIcons();
 
     setTimeout(() => {
       const proceed = document.getElementById('confirm-proceed-btn');
@@ -58,7 +69,9 @@ function alertModal(title, message) {
   return new Promise((resolve) => {
     const content = `
       <div style="padding:32px 24px; text-align:center;">
-        <div style="font-size:3.5rem; margin-bottom:16px;">⚠️</div>
+        <div style="margin-bottom:16px; display:flex; justify-content:center; color:var(--warning);">
+          <i data-lucide="triangle-alert" style="width:48px; height:48px;"></i>
+        </div>
         <h3 style="margin-bottom:8px;">${title}</h3>
         <p style="color:#555; font-size:1rem; margin-bottom:28px; max-width:340px;">${message}</p>
         <div style="display:flex; justify-content:center;">
@@ -68,6 +81,7 @@ function alertModal(title, message) {
     `;
 
     showModal(title, content);
+    renderIcons();
 
     setTimeout(() => {
       const ok = document.getElementById('alert-ok-btn');

@@ -2,27 +2,27 @@
 // ── Navigation ──────────────────────────────────────────────
 const NAV_CASHIER = [
   { section: 'Workspace' },
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'pos', label: 'New Order', icon: '🛒' },
+  { id: 'dashboard', label: 'Dashboard', icon: '<i data-lucide="bar-chart-2"></i>' },
+  { id: 'pos', label: 'New Order', icon: '<i data-lucide="shopping-cart"></i>' },
   // ── Active Orders screen removed for cashiers ──
   // They now manage ALL orders (new + existing) directly from the floor screen
-  { id: 'history', label: 'Order History', icon: '📜' },
+  { id: 'history', label: 'Order History', icon: '<i data-lucide="scroll-text"></i>' },
   { section: 'Account' },
-  { id: 'profile', label: 'Profile', icon: '👤' },
+  { id: 'profile', label: 'Profile', icon: '<i data-lucide="user"></i>' },
 ];
 
 
 const NAV_ADMIN = [
   { section: 'Overview' },
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+  { id: 'dashboard', label: 'Dashboard', icon: '<i data-lucide="bar-chart-2"></i>' },
   { section: 'POS' },
-  { id: 'orders', label: 'Active Orders', icon: '📋' },
-  { id: 'tables', label: 'Tables', icon: '🪑' },
-  { id: 'history', label: 'Order History', icon: '📜' },
+  { id: 'orders', label: 'Active Orders', icon: '<i data-lucide="clipboard-list"></i>' },
+  { id: 'tables', label: 'Tables', icon: '<i data-lucide="armchair"></i>' },
+  { id: 'history', label: 'Order History', icon: '<i data-lucide="scroll-text"></i>' },
   { section: 'Management' },
-  { id: 'management', label: 'Management', icon: '⚙️' },   // ← new single page
+  { id: 'management', label: 'Management', icon: '<i data-lucide="settings"></i>' },   // ← new single page
   { section: 'Account' },
-  { id: 'profile', label: 'Profile', icon: '👤' },
+  { id: 'profile', label: 'Profile', icon: '<i data-lucide="user"></i>' },
 ];
 
 
@@ -35,7 +35,8 @@ function buildSidebar() {
       h += `<div class="nav-section">${item.section}</div>`;
     } else {
       h += `<div class="nav-item ${state.currentRoute === item.id ? 'active' : ''}" data-route="${item.id}" title="${item.label}">
-        ${item.icon}
+        <span class="nav-icon">${item.icon}</span>
+        <span class="nav-label">${item.label}</span>
       </div>`;
     }
   }
@@ -67,8 +68,10 @@ async function enterApp() {
   const u = state.user;
   html($('#topbar-user'), `<div class="user-avatar">${(u.username || '?')[0].toUpperCase()}</div><span style="font-weight:600;">${u.username}</span>`);
 
-  // Sidebar small avatar
+  // Sidebar small avatar and text
   html($('#sidebar-user'), `${(u.username || '?')[0].toUpperCase()}`);
+  const sFooterName = document.getElementById('sidebar-footer-name');
+  if (sFooterName) sFooterName.textContent = u.username;
 
   // Load branches
   try {
@@ -116,7 +119,7 @@ function renderPage() {
   if (route === 'pos' && isAdmin()) {
     html(content, `
       <div class="empty-state" style="margin-top:80px;">
-        <div class="empty-icon" style="font-size:4rem;">🚫</div>
+        <div class="empty-icon" style="display:flex; justify-content:center;"><i data-lucide="ban" style="width:64px;height:64px;"></i></div>
         <h3>Access Denied</h3>
         <p>Administrators are not permitted to create new orders.</p>
         <button class="btn btn-primary" onclick="navigate('dashboard')">Go to Dashboard</button>
@@ -137,5 +140,5 @@ function renderPage() {
 
   const renderer = pages[route];
   if (renderer) renderer(content);
-  else html(content, '<div class="empty-state"><div class="empty-icon">🔍</div><p>Page not found</p></div>');
+  else html(content, '<div class="empty-state"><div class="empty-icon"><i data-lucide="search" style="width:48px;height:48px;"></i></div><p>Page not found</p></div>');
 }

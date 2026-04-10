@@ -10,7 +10,7 @@ async function renderHistory(el) {
         <button class="btn btn-primary" id="refresh-history">Refresh</button>
         ${isAdmin() ? `
           <button id="export-branch-history" class="btn btn-success">
-            📥 Full Branch Excel
+            <i data-lucide="download" style="width:18px;height:18px;margin-right:8px;"></i> Full Branch Excel
           </button>` : ''}
       </div>
     </div>
@@ -88,7 +88,7 @@ function renderHistoryTable(el) {
   const totalPages = Math.ceil(state.completedOrders.length / pageSize) || 1;
 
   if (!state.completedOrders.length) {
-    html(listEl, '<div class="empty-state"><div class="empty-icon">📜</div><p>No completed orders</p></div>');
+    html(listEl, '<div class="empty-state"><div class="empty-icon"><i data-lucide="scroll-text" style="width:48px;height:48px;"></i></div><p>No completed orders</p></div>');
     return;
   }
 
@@ -119,7 +119,7 @@ function renderHistoryTable(el) {
                 <button class="btn btn-sm btn-outline" data-view-order="${o.id}">View Details</button>
                 ${isAdmin() ? `
                 <button class="btn btn-sm btn-success" data-export-order="${o.id}" title="Download detailed Excel">
-                  📥 Excel
+                  <i data-lucide="download" style="width:16px;height:16px;margin-right:4px;"></i> Excel
                 </button>` : ''}
               </td>
             </tr>

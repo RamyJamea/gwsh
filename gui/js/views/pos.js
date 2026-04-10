@@ -11,7 +11,7 @@ async function renderPOS(el) {
         <div id="floor-grid" class="table-grid"></div>
         <div style="text-align:center; margin-top: 40px; margin-bottom: 40px;">
           <button id="pos-takeaway-btn" class="btn btn-primary" style="padding: 1.5rem 3rem; font-size: 1.25rem; font-weight:800; border-radius: var(--radius-pill); box-shadow: 0 10px 30px rgba(0,229,255,0.3);">
-            <span style="font-size:1.5rem">🛍️</span>
+            <i data-lucide="shopping-bag" style="width:28px;height:28px;margin-right:12px;"></i>
             Start Walk-in / Takeaway Order
           </button>
         </div>
@@ -37,7 +37,7 @@ async function renderPOS(el) {
               <span class="cart-header-title">Order Ticket</span>
               <div style="display:flex; align-items:center; gap:0.5rem;">
                 <span class="cart-table-pill" id="cart-table-label">No Table</span>
-                <button class="btn btn-sm btn-ghost" id="cart-pick-table" title="Change Table">🔄</button>
+                <button class="btn btn-sm btn-ghost" id="cart-pick-table" title="Change Table"><i data-lucide="refresh-cw" style="width:16px;height:16px;"></i></button>
               </div>
             </div>
             
@@ -193,7 +193,7 @@ async function setupPOSFloor(bid) {
         `;
       }).join('');
     } else {
-      h = `<div class="empty-state"><div class="empty-icon">🪑</div><p>No tables configured for this branch</p></div>`;
+      h = `<div class="empty-state"><div class="empty-icon"><i data-lucide="armchair" style="width:48px;height:48px;"></i></div><p>No tables configured for this branch</p></div>`;
     }
 
     html(floorGrid, h);
@@ -310,7 +310,7 @@ async function filterByCategory(catId) {
 function renderPOSProducts(items) {
   const grid = $('#pos-product-grid');
   if (!items.length) {
-    html(grid, '<div class="empty-state"><div class="empty-icon">🍽</div><p>No items found</p></div>');
+    html(grid, '<div class="empty-state"><div class="empty-icon"><i data-lucide="utensils" style="width:48px;height:48px;"></i></div><p>No items found</p></div>');
     return;
   }
 
@@ -507,7 +507,7 @@ function renderCart() {
   const summaryEl = $('#cart-summary');
 
   if (!state.cart.length) {
-    html(itemsEl, '<div class="empty-state"><div class="empty-icon">🛒</div><p>Cart is empty</p></div>');
+    html(itemsEl, '<div class="empty-state"><div class="empty-icon"><i data-lucide="shopping-cart" style="width:48px;height:48px;"></i></div><p>Cart is empty</p></div>');
     html(summaryEl, '');
     $('#cart-checkout-btn').disabled = true;
     if ($('#pos-total-items')) $('#pos-total-items').textContent = '0';
@@ -698,8 +698,8 @@ async function handleHeldCheckout(orderId) {
       <div class="form-group">
         <label style="font-weight:600;">Payment Method</label>
         <select id="held-checkout-payment" style="width:100%; padding:12px; border-radius:8px; font-size:1.1rem;">
-          <option value="cash">💵 Cash</option>
-          <option value="card">💳 Card</option>
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
         </select>
       </div>
 
@@ -709,7 +709,7 @@ async function handleHeldCheckout(orderId) {
       </div>
 
       <div style="margin-top:28px; display:flex; gap:12px;">
-        <button class="btn btn-success btn-lg w-full" id="confirm-held-checkout">✅ Confirm & Complete Order</button>
+        <button class="btn btn-success btn-lg w-full" id="confirm-held-checkout"><i data-lucide="check-circle" style="width:20px;height:20px;margin-right:8px;"></i> Confirm & Complete Order</button>
         <button class="btn btn-outline btn-lg w-full" id="cancel-held-checkout">Cancel</button>
       </div>
     </div>
@@ -731,7 +731,7 @@ async function handleHeldCheckout(orderId) {
 
       closeModal();
       closeDrawer();
-      toast('✅ Order paid successfully!', 'success');
+      toast('<div style="display:flex; align-items:center; gap:8px;"><i data-lucide="check-circle" style="width:18px;height:18px;"></i> Order paid successfully!</div>', 'success');
       renderPOS($('#content'));   // refreshes floor view
     } catch (err) {
       toast(err.message, 'error');
@@ -748,7 +748,7 @@ async function addItemToHeldOrderWithExtras(orderId, menuItemId, onSuccess = nul
 
   if (!hasExtras) {
     await addItemToHeldOrder(orderId, menuItemId, [], onSuccess);
-    toast(`✅ Added ${mi._productName}`, 'success');
+    toast(`<div style="display:flex; align-items:center; gap:8px;"><i data-lucide="check-circle" style="width:18px;height:18px;"></i> Added ${mi._productName}</div>`, 'success');
     return;
   }
 
@@ -788,13 +788,13 @@ async function addItemToHeldOrderWithExtras(orderId, menuItemId, onSuccess = nul
         selected.push({ id: parseInt(chk.dataset.id), name: chk.dataset.name, price: parseFloat(chk.dataset.price) });
       });
       await addItemToHeldOrder(orderId, menuItemId, selected, onSuccess);
-      toast(`✅ Added ${mi._productName} with extras`, 'success');
+      toast(`<div style="display:flex; align-items:center; gap:8px;"><i data-lucide="check-circle" style="width:18px;height:18px;"></i> Added ${mi._productName} with extras</div>`, 'success');
       showAddItemsToOrder(orderId, onSuccess); // Reopen the search modal to continue adding
     });
 
     skipBtn.addEventListener('click', async () => {
       await addItemToHeldOrder(orderId, menuItemId, [], onSuccess);
-      toast(`✅ Added ${mi._productName}`, 'success');
+      toast(`<div style="display:flex; align-items:center; gap:8px;"><i data-lucide="check-circle" style="width:18px;height:18px;"></i> Added ${mi._productName}</div>`, 'success');
       showAddItemsToOrder(orderId, onSuccess); // Reopen the search modal to continue adding
     });
   }, 10);

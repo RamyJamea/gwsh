@@ -18,7 +18,7 @@ async function renderOrders(el) {
     const active = orders.filter(o => o.action === 'create' || o.action === 'update');
 
     if (!active.length) {
-      html($('#orders-list'), '<div class="empty-state"><div class="empty-icon">📋</div><p>No active orders</p></div>');
+      html($('#orders-list'), '<div class="empty-state"><div class="empty-icon"><i data-lucide="clipboard-list" style="width:48px;height:48px;"></i></div><p>No active orders</p></div>');
       return;
     }
 
@@ -109,7 +109,7 @@ async function showOrderDetail(orderId, defaultTab = null) {
         </div>
         ${isAdmin() ? `
         <button id="drawer-export-excel" class="btn btn-sm btn-outline">
-          📥 Export Excel
+          <i data-lucide="download" style="width:16px;height:16px;margin-right:6px;"></i> Export Excel
         </button>` : ''}
       </div>
 
@@ -183,15 +183,15 @@ async function showOrderDetail(orderId, defaultTab = null) {
           <div class="form-group">
             <label style="font-weight:600;">Payment Method</label>
             <select id="drawer-checkout-payment" style="width:100%; padding:12px; border-radius:8px; font-size:1.1rem;">
-              <option value="cash">💵 Cash</option>
-              <option value="card">💳 Card</option>
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
             </select>
           </div>
           <div style="margin:24px 0; padding:16px; background:#fff; border-radius:12px; text-align:center; border: 1px solid var(--border);">
             <div class="text-muted">Total to pay</div>
             <div style="font-size:2rem; font-weight:800; color:var(--brand-primary);">${formatMoney(order.total_amount)}</div>
           </div>
-          <button class="btn btn-success btn-lg w-full" id="drawer-confirm-checkout" style="margin-bottom: 24px;">✅ Confirm & Complete Order</button>
+          <button class="btn btn-success btn-lg w-full" id="drawer-confirm-checkout" style="margin-bottom: 24px;"><i data-lucide="check-circle" style="width:20px;height:20px;margin-right:8px;"></i> Confirm & Complete Order</button>
           
           <div style="border-top: 1px dashed var(--border); padding-top: 16px;">
              <button class="btn btn-outline btn-danger w-full" id="drawer-cancel-order">Cancel Order</button>
@@ -347,7 +347,7 @@ async function showOrderDetail(orderId, defaultTab = null) {
           await api.post(`/orders/${orderId}/checkout`, { payment_method: payment });
           await finalizeOrder(orderId);
           closeDrawer();
-          toast('✅ Order paid successfully!', 'success');
+          toast('<div style="display:flex; align-items:center; gap:8px;"><i data-lucide="check-circle" style="width:18px;height:18px;"></i> Order paid successfully!</div>', 'success');
           renderPOS($('#content'));
         } catch (err) {
           toast(err.message, 'error');
@@ -496,7 +496,7 @@ async function loadDrawerAddItems(orderId) {
         </div>
         <div style="display:flex; gap:12px; align-items:center; flex-shrink:0;">
           <span class="tabular-nums font-bold" style="color:var(--brand-primary);">${formatMoney((pi.quantity || 1) * (pi.price + (pi.extras || []).reduce((sc, e) => sc + e.price, 0)))}</span>
-          <button class="btn-icon text-danger drawer-pending-remove" data-idx="${idx}" style="font-size:1.2rem; cursor:pointer; background:none; border:none; padding:4px;">✕</button>
+          <button class="btn-icon text-danger drawer-pending-remove" data-idx="${idx}" style="cursor:pointer; background:none; border:none; padding:4px;"><i data-lucide="x" style="width:18px;height:18px;"></i></button>
         </div>
       </div>
     `).join('');
@@ -536,7 +536,7 @@ async function loadDrawerAddItems(orderId) {
         newBtnSave.disabled = true;
         newBtnSave.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;display:inline-block;"></div>';
         await api.post(`/orders/${orderId}/items`, payload);
-        toast('✅ Items added successfully', 'success');
+        toast('<div style="display:flex; align-items:center; gap:8px;"><i data-lucide="check-circle" style="width:18px;height:18px;"></i> Items added successfully</div>', 'success');
         if (typeof showOrderDetail === 'function') {
             showOrderDetail(orderId, 'items');
         }

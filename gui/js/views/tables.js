@@ -13,7 +13,7 @@ async function renderTables(el) {
     const tables = await api.get(`/tables/branch/${bid}`);
     state.tables = tables;
     if (!tables.length) {
-      html($('#tables-grid'), '<div class="empty-state"><div class="empty-icon">🪑</div><p>No tables configured</p></div>');
+      html($('#tables-grid'), '<div class="empty-state"><div class="empty-icon"><i data-lucide="armchair" style="width:48px;height:48px;"></i></div><p>No tables configured</p></div>');
     } else {
       html($('#tables-grid'), `<div class="table-grid">${tables.map(t => `
         <div class="table-card ${t.is_available ? 'available' : 'occupied'}" data-table-id="${t.id}">

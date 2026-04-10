@@ -2,15 +2,15 @@
 // ── Consolidated Admin Management (one page with tabs) ─────────────
 async function renderManagement(el) {
   html(el, `
-    <div class="page-header"><h2>⚙️ Management</h2></div>
+    <div class="page-header"><h2 style="display:flex;align-items:center;"><i data-lucide="settings" style="width:28px;height:28px;margin-right:8px;"></i> Management</h2></div>
     <div class="tabs" id="management-tabs">
-      <div class="tab-item active" data-tab="branches">🏢 Branches</div>
-      <div class="tab-item" data-tab="users">👥 Users</div>
-      <div class="tab-item" data-tab="categories">📁 Categories</div>
-      <div class="tab-item" data-tab="products">📦 Products</div>
-      <div class="tab-item" data-tab="sizes">📏 Sizes</div>
-      <div class="tab-item" data-tab="extras">✨ Extras</div>
-      <div class="tab-item" data-tab="menu-items">🍽 Menu Items</div>
+      <div class="tab-item active" data-tab="branches"><i data-lucide="building" style="width:18px;height:18px;"></i> Branches</div>
+      <div class="tab-item" data-tab="users"><i data-lucide="users" style="width:18px;height:18px;"></i> Users</div>
+      <div class="tab-item" data-tab="categories"><i data-lucide="folder" style="width:18px;height:18px;"></i> Categories</div>
+      <div class="tab-item" data-tab="products"><i data-lucide="package" style="width:18px;height:18px;"></i> Products</div>
+      <div class="tab-item" data-tab="sizes"><i data-lucide="ruler" style="width:18px;height:18px;"></i> Sizes</div>
+      <div class="tab-item" data-tab="extras"><i data-lucide="sparkles" style="width:18px;height:18px;"></i> Extras</div>
+      <div class="tab-item" data-tab="menu-items"><i data-lucide="utensils" style="width:18px;height:18px;"></i> Menu Items</div>
     </div>
     <div id="management-content" style="margin-top:24px;"></div>
   `);
@@ -62,7 +62,7 @@ async function renderBranchesTab(el) {
     state.branches = branches;
 
     if (!branches.length) {
-      html($('#branches-list-tab'), '<div class="empty-state"><div class="empty-icon">🏢</div><p>No branches</p></div>');
+      html($('#branches-list-tab'), '<div class="empty-state"><div class="empty-icon"><i data-lucide="building" style="width:48px;height:48px;"></i></div><p>No branches</p></div>');
     } else {
       html($('#branches-list-tab'), `
         <div class="data-table-wrapper">
