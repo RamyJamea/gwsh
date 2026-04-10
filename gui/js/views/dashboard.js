@@ -1,0 +1,107 @@
+// ── Dashboard ───────────────────────────────────────────────
+
+
+async function renderDashboard(el) {
+  if (isAdmin()) {
+    html(el, `
+      <div class="page-header"><h2>Admin Dashboard</h2></div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Branches</div><div class="stat-value" id="dash-branches">—</div></div>
+        <div class="stat-card"><div class="stat-label">Orders Today</div><div class="stat-value" id="dash-orders">—</div></div>
+        <div class="stat-card"><div class="stat-label">Active Users</div><div class="stat-value" id="dash-users">—</div></div>
+        <div class="stat-card"><div class="stat-label">Menu Items</div><div class="stat-value" id="dash-menu">—</div></div>
+        <!-- NEW: Total Revenue for Admin -->
+        <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value tabular-nums" id="dash-revenue">—</div></div>
+      </div>
+      <div class="card"><div class="card-header">Recent Activity</div><div class="card-body" id="dash-activity"><div class="loading-center"><div class="spinner"></div></div></div></div>
+    `);
+
+    try {
+      const [branches, orders, menuItems] = await Promise.all([
+        api.get('/branches/'),
+        state.selectedBranch ? api.get(`/orders/?branch_id=${state.selectedBranch}`) : Promise.resolve([]),
+        api.get('/menu-items/').catch(() => []),
+      ]);
+
+      $('#dash-branches').textContent = branches.length;
+      $('#dash-orders').textContent = orders.length;
+      $('#dash-menu').textContent = menuItems.length;
+
+      try {
+        const users = await api.get('/users/');
+        $('#dash-users').textContent = users.filter(u => u.is_active).length;
+      } catch { $('#dash-users').textContent = '—'; }
+
+      // ── NEW: Calculate Total Revenue (sum of all paid orders) ──
+      const revenue = orders
+        .filter(o => o.action === 'pay')
+        .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+
+      $('#dash-revenue').textContent = formatMoney(revenue);
+
+      if (orders.length) {
+        html($('#dash-activity'), orders.slice(0, 10).map(o =>
+          `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
+            <span>Order #${o.id}</span>
+            <span class="badge badge-${actionBadge(o.action)}">${o.action}</span>
+            <span class="tabular-nums">${formatMoney(o.total_amount)}</span>
+          </div>`
+        ).join(''));
+      } else {
+        html($('#dash-activity'), '<div class="empty-state"><p>No recent orders</p></div>');
+      }
+    } catch (err) {
+      html($('#dash-activity'), `<div class="error-message">${err.message}</div>`);
+    }
+  } else {
+    html(el, `
+      <div class="page-header"><h2>Dashboard</h2></div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Active Orders</div><div class="stat-value" id="dash-active">—</div></div>
+        <div class="stat-card"><div class="stat-label">Available Tables</div><div class="stat-value" id="dash-tables">—</div></div>
+        <div class="stat-card"><div class="stat-label">Today's Revenue</div><div class="stat-value tabular-nums" id="dash-revenue">—</div></div>
+      </div>
+      <div class="card"><div class="card-header">Recent Orders</div><div class="card-body" id="dash-recent"><div class="loading-center"><div class="spinner"></div></div></div></div>
+    `);
+    try {
+      const bid = state.selectedBranch;
+      const [orders, tables] = await Promise.all([
+        bid ? api.get(`/orders/?branch_id=${bid}`) : Promise.resolve([]),
+        bid ? api.get(`/tables/branch/${bid}`) : Promise.resolve([]),
+      ]);
+      const active = orders.filter(o => o.action === 'create' || o.action === 'update');
+      const avail = tables.filter(t => t.is_available);
+      const revenue = orders.filter(o => o.action === 'pay').reduce((s, o) => s + parseFloat(o.total_amount || 0), 0);
+      $('#dash-active').textContent = active.length;
+      $('#dash-tables').textContent = `${avail.length} / ${tables.length}`;
+      $('#dash-revenue').textContent = formatMoney(revenue);
+      if (orders.length) {
+        html($('#dash-recent'), orders.slice(0, 8).map(o =>
+          `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
+            <span>Order #${o.id}</span>
+            <span class="badge badge-${actionBadge(o.action)}">${o.action}</span>
+            <span class="tabular-nums">${formatMoney(o.total_amount)}</span>
+          </div>`
+        ).join(''));
+      } else {
+        html($('#dash-recent'), '<div class="empty-state"><p>No orders yet</p></div>');
+      }
+    } catch (err) {
+      html($('#dash-recent'), `<div class="error-message">${err.message}</div>`);
+    }
+  }
+}
+
+function actionBadge(action) {
+  const map = {
+    create: 'info',
+    update: 'warning',
+    pay: 'success',
+    cancel: 'danger'
+  };
+  return map[action] || 'gray';
+}
+function getItemTotal(item) {
+  const extraSum = item.extras.reduce((sum, extra) => sum + (extra.price || 0), 0);
+  return item.quantity * (item.price + extraSum);
+}

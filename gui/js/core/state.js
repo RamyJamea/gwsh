@@ -1,0 +1,25 @@
+// ── State ───────────────────────────────────────────────────
+const state = {
+  token: localStorage.getItem('pos_token') || null,
+  user: JSON.parse(localStorage.getItem('pos_user') || 'null'),
+  role: localStorage.getItem('pos_role') || null,
+  branches: [],
+  selectedBranch: null,
+  currentRoute: 'dashboard',
+  cart: [],
+  cartTable: null,
+  categories: [],
+  products: [],
+  sizes: [],
+  extras: [],
+  menuItems: [],
+  tables: [],
+  orders: [],
+  users: [],
+  completedOrders: [],
+  historyPage: 1,
+  historyPageSize: 10,
+  currentAdminTab: 'branches',
+  posRenderVersion: 0,
+};
+
