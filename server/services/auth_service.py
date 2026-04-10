@@ -29,7 +29,7 @@ class AuthenticationService:
         self, data: dict, expires_delta: timedelta | None = None
     ) -> str:
         to_encode = data.copy()
-        expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=15))
+        expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=1))
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, SETTINGS.SECRET_KEY, algorithm=SETTINGS.ALGORITHM)
 
