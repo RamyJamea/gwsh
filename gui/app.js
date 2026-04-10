@@ -501,7 +501,7 @@ async function renderPOS(el) {
             <div class="cart-actions">
               <button class="btn btn-success btn-lg" id="cart-checkout-btn" disabled>Checkout</button>
               <div class="flex gap-sm">
-                <button class="btn btn-outline btn-sm w-full" id="cart-hold-btn">Hold</button>
+                <button class="btn btn-outline btn-sm w-full" id="cart-hold-btn" title="">Hold Order</button>
                 <button class="btn btn-danger btn-sm w-full" id="cart-clear-btn">Clear</button>
               </div>
             </div>
@@ -694,6 +694,7 @@ function showPOSMenuView() {
   if (labelEl) {
     labelEl.textContent = state.cartTable ? `Table T${state.cartTable}` : 'Walk-in / Takeaway';
   }
+  updateHoldButton();
 }
 
 function goBackToFloor() {
@@ -1012,6 +1013,7 @@ function renderCart() {
   if ($('#pos-total-items')) $('#pos-total-items').textContent = totalItems;
   if ($('#pos-subtotal')) $('#pos-subtotal').textContent = formatMoney(subtotal);
   if ($('#pos-total')) $('#pos-total').textContent = formatMoney(total);
+  updateHoldButton();
 }
 
 
@@ -1086,6 +1088,12 @@ async function handleCheckout() {
 async function handleHold() {
   if (!state.cart.length) return;
 
+  // ── NEW: Block takeaway orders from being held ─────────────────────
+  if (state.cartTable === null) {
+    toast('Takeaway orders cannot be held.\nPlease assign a table or checkout directly.', 'warning');
+    return;
+  }
+
   const bid = state.selectedBranch;
   if (!bid) {
     toast('Select a branch first', 'warning');
@@ -1098,8 +1106,8 @@ async function handleHold() {
       branch_id: bid,
       table_id: state.cartTable,
       total_amount: state.cart.reduce((s, i) => s + getItemTotal(i), 0),
-      action: "create",           // ← REQUIRED
-      payment_method: null,       // ← not paid yet
+      action: "create",
+      payment_method: null,
       items: state.cart.map(c => ({
         menu_item_id: c.menuItemId,
         quantity: c.quantity,
@@ -1114,22 +1122,28 @@ async function handleHold() {
 
     const order = await api.post('/orders/', orderData);
 
-    // Clear cart
     state.cart = [];
     state.cartTable = null;
-
     toast(`Order #${order.id} held successfully!`, 'success');
-
-    // Refresh POS UI
     renderPOS($('#content'));
   } catch (err) {
     toast(err.message, 'error');
   }
 }
 
-// ── Active Orders ───────────────────────────────────────────
 
-// ── Checkout held order with payment selector ─────────────────────
+// ── NEW: Prevent Hold for takeaway orders ─────────────────────────────
+function updateHoldButton() {
+  const holdBtn = $('#cart-hold-btn');
+  if (!holdBtn) return;
+  const isTakeaway = state.cartTable === null;
+  holdBtn.disabled = isTakeaway;
+  holdBtn.title = isTakeaway
+    ? 'Hold is not allowed for takeaway / walk-in orders'
+    : '';
+}
+
+
 // Improved checkout modal
 async function handleHeldCheckout(orderId) {
   showModal(`Checkout Order #${orderId}`, `
