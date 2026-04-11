@@ -20,6 +20,7 @@ class CategoryResponse(CategoryBase, AuditSchema):
 
 class ProductBase(BaseModel):
     name: str
+    image_url: str | None = None
 
 
 class ProductCreate(ProductBase):
@@ -29,6 +30,7 @@ class ProductCreate(ProductBase):
 class ProductUpdate(BaseModel):
     name: str | None = None
     category_id: int | None = None
+    image_url: str | None = None
 
 
 class ProductResponse(ProductBase, AuditSchema):

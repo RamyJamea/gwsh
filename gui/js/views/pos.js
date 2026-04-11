@@ -246,7 +246,7 @@ async function enrichMenuItems() {
   try {
     if (!Object.keys(_productCache).length) {
       const prods = await api.get('/products/');
-      prods.forEach(p => _productCache[p.id] = p.name);
+      prods.forEach(p => _productCache[p.id] = { name: p.name, image_url: p.image_url });
     }
   } catch { }
   try {
@@ -256,7 +256,9 @@ async function enrichMenuItems() {
     }
   } catch { }
   state.menuItems.forEach(mi => {
-    mi._productName = _productCache[mi.product_id] || `Product ${mi.product_id}`;
+    const pData = _productCache[mi.product_id] || { name: `Product ${mi.product_id}`, image_url: null };
+    mi._productName = pData.name;
+    mi._productImage = pData.image_url;
     mi._sizeName = _sizeCache[mi.size_id] || `Size ${mi.size_id}`;
   });
 }
@@ -315,6 +317,7 @@ function renderPOSProducts(items) {
       productGroups[pid] = {
         productId: pid,
         productName: mi._productName,
+        productImage: mi._productImage,
         sizes: []
       };
     }
@@ -338,16 +341,14 @@ function renderPOSProducts(items) {
       <div class="product-card" 
            data-product-id="${group.productId}"
            ${hasMultiple ? 'data-multiple="true"' : `data-mi-id="${first.menuItemId}"`}>
-        <div class="product-img-placeholder">${group.productName[0]}</div>
+        <div class="product-img-wrapper">
+          ${group.productImage ? `<img src="${group.productImage}" alt="${group.productName}" class="product-img-placeholder">` : `<div class="product-img-fallback">${group.productName[0]}</div>`}
+          <div class="product-price-badge">${formatMoney(first.price)}${hasMultiple ? '+' : ''}</div>
+        </div>
         <div class="product-card-body">
           <div class="product-name">${group.productName}</div>
-          <div class="product-size">
-            ${hasMultiple ? 'Multiple sizes • Select' : first.sizeName}
-          </div>
-          <div class="product-price">
-            ${formatMoney(first.price)}${hasMultiple ? ' and up' : ''}
-          </div>
-          ${anyExtras ? `<div class="product-extras">+extras available</div>` : ''}
+          <div class="product-size">${hasMultiple ? 'Multiple sizes • Select' : first.sizeName}</div>
+          ${anyExtras ? `<div class="product-extras"><i data-lucide="sparkles" style="width:14px;height:14px;"></i> Extras available</div>` : ''}
         </div>
       </div>
     `;

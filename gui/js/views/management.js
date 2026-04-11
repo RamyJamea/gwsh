@@ -178,9 +178,10 @@ async function renderProductsTab(el) {
     html($('#prod-list-tab'), `
       <div class="data-table-wrapper">
         <table class="data-table">
-          <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Actions</th></tr></thead>
+          <thead><tr><th>ID</th><th>Image</th><th>Name</th><th>Category</th><th>Actions</th></tr></thead>
           <tbody>${prods.map(p => `<tr>
             <td>${p.id}</td>
+            <td>${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" style="width:40px;height:40px;border-radius:4px;object-fit:cover;">` : '<div style="width:40px;height:40px;border-radius:4px;background:var(--bg-lighter);display:flex;align-items:center;justify-content:center;"><i data-lucide="image" style="width:20px;height:20px;color:var(--text-muted);"></i></div>'}</td>
             <td><strong>${p.name}</strong></td>
             <td>${catMap[p.category_id] || p.category_id}</td>
             <td>
@@ -473,26 +474,82 @@ function showProductForm(id = null) {
   const item = id ? state.products.find(p => p.id === id) : null;
   openDrawer(id ? 'Edit Product' : 'Add Product', `
     <form id="entity-form">
-      <div class="form-group"><label>Name</label><input type="text" id="ef-name" value="${item ? item.name : ''}" required></div>
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="ef-name" value="${item ? item.name : ''}" required>
+      </div>
+      <div class="form-group">
+        <label>Product Image (Optional)</label>
+        <div id="ef-image-zone" style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;position:relative;transition:border-color 0.2s,background 0.2s;">
+          <input type="file" id="ef-image-file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+          <div id="ef-image-preview">
+            ${item && item.image_url
+              ? `<img src="${item.image_url}" style="max-width:100%;max-height:140px;border-radius:6px;object-fit:contain;">`
+              : `<div style="color:var(--text-muted);pointer-events:none;"><i data-lucide="image-plus" style="width:36px;height:36px;margin-bottom:8px;"></i><br><span style="font-size:0.85rem;">Click to select an image</span></div>`
+            }
+          </div>
+        </div>
+      </div>
       <div class="form-group">
         <label>Category</label>
         <select id="ef-cat" required>
           ${state.categories.map(c => `<option value="${c.id}" ${item && item.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
         </select>
       </div>
-      <button type="submit" class="btn btn-primary btn-block">${id ? 'Update' : 'Create'}</button>
+      <button type="submit" id="ef-submit-btn" class="btn btn-primary btn-block">${id ? 'Update' : 'Create'}</button>
     </form>
   `);
+  if (window.lucide) lucide.createIcons();
+
+  // Live preview when a file is selected
+  $('#ef-image-file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      $('#ef-image-preview').innerHTML = `<img src="${ev.target.result}" style="max-width:100%;max-height:140px;border-radius:6px;object-fit:contain;">`;
+      $('#ef-image-zone').style.borderColor = 'var(--primary)';
+    };
+    reader.readAsDataURL(file);
+  });
+
   $('#entity-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const data = { name: $('#ef-name').value.trim(), category_id: parseInt($('#ef-cat').value) };
+    const btn = $('#ef-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    let finalImageUrl = item ? item.image_url : null;
+    const fileInput = $('#ef-image-file');
+
+    if (fileInput.files.length > 0) {
+      try {
+        const uploadRes = await api.upload('/upload/image', fileInput.files[0]);
+        finalImageUrl = uploadRes.url;
+      } catch(err) {
+        toast('Image upload failed: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = id ? 'Update' : 'Create';
+        return;
+      }
+    }
+
+    const data = {
+      name: $('#ef-name').value.trim(),
+      category_id: parseInt($('#ef-cat').value),
+      image_url: finalImageUrl
+    };
     try {
       if (id) await api.put(`/products/${id}`, data);
       else await api.post('/products/', data);
       closeDrawer();
       toast(`Product ${id ? 'updated' : 'created'}`, 'success');
       refreshCurrentTab();
-    } catch (err) { toast(err.message, 'error'); }
+    } catch (err) {
+      toast(err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = id ? 'Update' : 'Create';
+    }
   });
 }
 

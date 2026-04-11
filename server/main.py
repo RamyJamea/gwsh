@@ -3,12 +3,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from starlette import status
 from .core import ENGINE, seed_admin_user
 from .models import *
 from .routes import auth_router, user_router
 from .routes import branch_router, table_router
 from .routes import category_router, product_router, size_router, extra_router
-from .routes import order_router, history_router, menu_router
+from .routes import order_router, history_router, menu_router, upload_router
 
 
 @asynccontextmanager
@@ -44,6 +45,7 @@ app.include_router(extra_router, prefix="/api/v1")
 app.include_router(order_router, prefix="/api/v1")
 app.include_router(history_router, prefix="/api/v1")
 app.include_router(menu_router, prefix="/api/v1")
+app.include_router(upload_router, prefix="/api/v1")
 
 
 @app.get("/api/health", tags=["Root"])
@@ -54,9 +56,16 @@ def root_check():
     }
 
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 GUI_DIR = BASE_DIR / "gui"
+UPLOADS_DIR = GUI_DIR / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Serve uploaded images — must come BEFORE the catch-all GUI mount
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
+
+# Catch-all for the SPA (must be last so API routes take priority)
 app.mount("/", StaticFiles(directory=GUI_DIR, html=True), name="gui")
 
 

@@ -9,3 +9,4 @@ from .extra_router import router as extra_router
 from .order_router import router as order_router
 from .history_router import router as history_router
 from .menu_router import router as menu_router
+from .upload_router import router as upload_router

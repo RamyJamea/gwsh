@@ -19,6 +19,23 @@ const api = {
   put: (p, b) => api.req('PUT', p, b),
   patch: (p, b) => api.req('PATCH', p, b),
   del: (p) => api.req('DELETE', p),
+  async upload(path, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const headers = {};
+    if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
+    const res = await fetch(`${API}${path}`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+    if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || res.statusText);
+    }
+    return res.json();
+  },
 
   async login(username, password) {
     const form = new URLSearchParams();

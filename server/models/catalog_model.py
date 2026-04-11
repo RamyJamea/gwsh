@@ -12,6 +12,7 @@ class Product(Base, AuditMixin):
 
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"))
     name: Mapped[str]
+    image_url: Mapped[str | None] = mapped_column(default=None)
 
     category: Mapped["Category"] = relationship(back_populates="products")
     menu_items: Mapped[list["MenuItem"]] = relationship(
