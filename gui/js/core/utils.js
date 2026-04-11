@@ -27,20 +27,20 @@ async function confirmAction(title, message, options = {}) {
 
   return new Promise((resolve) => {
     const content = `
-      <div style="padding:32px 24px; text-align:center;">
-        <div style="margin-bottom:16px; display:flex; justify-content:center; color:${danger ? 'var(--danger)' : 'var(--brand-primary)'};">
-          <i data-lucide="${danger ? 'triangle-alert' : 'help-circle'}" style="width:48px; height:48px;"></i>
+      <div style="padding:40px 24px; text-align:center; display:flex; flex-direction:column; align-items:center;">
+        <div style="margin-bottom:24px; display:flex; justify-content:center; align-items:center; background:${danger ? 'var(--danger-bg)' : 'rgba(211, 84, 0, 0.1)'}; color:${danger ? 'var(--danger)' : 'var(--brand-primary)'}; width:80px; height:80px; border-radius:50%;">
+          <i data-lucide="${danger ? 'triangle-alert' : 'help-circle'}" style="width:40px; height:40px;"></i>
         </div>
-        <h3 style="margin-bottom:8px;">${title}</h3>
-        <p style="color:#555; font-size:1rem; margin-bottom:28px; max-width:340px;">${message}</p>
-        <div style="display:flex; gap:16px; justify-content:center;">
-          <button id="confirm-cancel-btn" class="btn btn-outline">${cancelText}</button>
-          <button id="confirm-proceed-btn" class="btn btn-${danger ? 'danger' : 'primary'}">${confirmText}</button>
+        <h3 style="margin-bottom:12px; font-size:1.5rem; color:#111827;">${title}</h3>
+        <p style="color:var(--text-muted); font-size:1.05rem; margin-bottom:32px; max-width:380px; line-height:1.6;">${message}</p>
+        <div style="display:flex; gap:16px; justify-content:center; width:100%; max-width:340px;">
+          <button id="confirm-cancel-btn" class="btn btn-outline" style="flex:1; padding:0.75rem;">${cancelText}</button>
+          <button id="confirm-proceed-btn" class="btn btn-${danger ? 'danger' : 'primary'}" style="flex:1; padding:0.75rem;">${confirmText}</button>
         </div>
       </div>
     `;
 
-    showModal(title, content);
+    showModal(title, content, false);
     renderIcons();
 
     setTimeout(() => {
@@ -68,19 +68,19 @@ async function confirmAction(title, message, options = {}) {
 function alertModal(title, message) {
   return new Promise((resolve) => {
     const content = `
-      <div style="padding:32px 24px; text-align:center;">
-        <div style="margin-bottom:16px; display:flex; justify-content:center; color:var(--warning);">
-          <i data-lucide="triangle-alert" style="width:48px; height:48px;"></i>
+      <div style="padding:40px 24px; text-align:center; display:flex; flex-direction:column; align-items:center;">
+        <div style="margin-bottom:24px; display:flex; justify-content:center; align-items:center; background:var(--warning-bg); color:var(--warning); width:80px; height:80px; border-radius:50%;">
+          <i data-lucide="triangle-alert" style="width:40px; height:40px;"></i>
         </div>
-        <h3 style="margin-bottom:8px;">${title}</h3>
-        <p style="color:#555; font-size:1rem; margin-bottom:28px; max-width:340px;">${message}</p>
-        <div style="display:flex; justify-content:center;">
-          <button id="alert-ok-btn" class="btn btn-primary" style="min-width: 120px;">OK</button>
+        <h3 style="margin-bottom:12px; font-size:1.5rem; color:#111827;">${title}</h3>
+        <p style="color:var(--text-muted); font-size:1.05rem; margin-bottom:32px; max-width:380px; line-height:1.6;">${message}</p>
+        <div style="display:flex; justify-content:center; width:100%;">
+          <button id="alert-ok-btn" class="btn btn-primary" style="min-width:140px; padding:0.75rem;">OK</button>
         </div>
       </div>
     `;
 
-    showModal(title, content);
+    showModal(title, content, false);
     renderIcons();
 
     setTimeout(() => {

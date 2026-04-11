@@ -294,3 +294,21 @@ class OrderService(BaseService):
     def export_detailed_history_for_branch(self, branch_id: int) -> bytes:
         """Public API for exporting detailed history of ALL orders in a branch as Excel."""
         return self.history_service.export_detailed_history_for_branch(branch_id)
+
+    def clear_branch_history(self, branch_id: int) -> int:
+        from sqlalchemy import select
+        if not self.branch_repo.get_by_id(branch_id):
+            raise ValueError(f"Branch {branch_id} not found")
+
+        stmt = select(Order).where(
+            Order.branch_id == branch_id,
+            Order.action.in_([ActionEnum.PAY, ActionEnum.CANCEL])
+        )
+        orders_to_delete = self.session.scalars(stmt).all()
+        count = len(orders_to_delete)
+
+        for order in orders_to_delete:
+            self.session.delete(order)
+
+        self.session.commit()
+        return count

@@ -56,38 +56,31 @@ async function renderDashboard(el) {
   } else {
     html(el, `
       <div class="page-header"><h2>Dashboard</h2></div>
-      <div class="stat-grid">
-        <div class="stat-card"><div class="stat-label">Active Orders</div><div class="stat-value" id="dash-active">—</div></div>
-        <div class="stat-card"><div class="stat-label">Available Tables</div><div class="stat-value" id="dash-tables">—</div></div>
-        <div class="stat-card"><div class="stat-label">Today's Revenue</div><div class="stat-value tabular-nums" id="dash-revenue">—</div></div>
+      <div class="card">
+        <div class="card-header">Current Branch Recent Orders</div>
+        <div class="card-body" id="dash-recent">
+          <div class="loading-center"><div class="spinner"></div></div>
+        </div>
       </div>
-      <div class="card"><div class="card-header">Recent Orders</div><div class="card-body" id="dash-recent"><div class="loading-center"><div class="spinner"></div></div></div></div>
     `);
     try {
-      const bid = state.selectedBranch;
-      const [orders, tables] = await Promise.all([
-        bid ? api.get(`/orders/?branch_id=${bid}`) : Promise.resolve([]),
-        bid ? api.get(`/tables/branch/${bid}`) : Promise.resolve([]),
-      ]);
-      const active = orders.filter(o => o.action === 'create' || o.action === 'update');
-      const avail = tables.filter(t => t.is_available);
-      const revenue = orders.filter(o => o.action === 'pay').reduce((s, o) => s + parseFloat(o.total_amount || 0), 0);
-      $('#dash-active').textContent = active.length;
-      $('#dash-tables').textContent = `${avail.length} / ${tables.length}`;
-      $('#dash-revenue').textContent = formatMoney(revenue);
+      const bid = state.user.branch_id;
+      const orders = await (bid ? api.get(`/orders/?branch_id=${bid}`) : Promise.resolve([]));
+      
       if (orders.length) {
-        html($('#dash-recent'), orders.slice(0, 8).map(o =>
-          `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
-            <span>Order #${o.id}</span>
+        // Show a more generous list since it's the only thing on the page
+        html($('#dash-recent'), orders.slice(0, 15).map(o =>
+          `<div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);font-size:0.9rem;">
+            <span style="font-weight:600;">Order #${o.id}</span>
             <span class="badge badge-${actionBadge(o.action)}">${o.action}</span>
-            <span class="tabular-nums">${formatMoney(o.total_amount)}</span>
+            <span class="tabular-nums font-bold">${formatMoney(o.total_amount)}</span>
           </div>`
         ).join(''));
       } else {
-        html($('#dash-recent'), '<div class="empty-state"><p>No orders yet</p></div>');
+        html($('#dash-recent'), '<div class="empty-state"><p>No orders yet for this branch</p></div>');
       }
     } catch (err) {
-      html($('#dash-recent'), `<div class="error-message">${err.message}</div>`);
+      html($('#dash-recent'), `<div class="error-message">Failed to load recent orders: ${err.message}</div>`);
     }
   }
 }

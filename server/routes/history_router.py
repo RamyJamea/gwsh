@@ -54,6 +54,21 @@ def export_branch_history_excel(
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
+@router.delete("/branches/{branch_id}/clear")
+def clear_branch_history(
+    branch_id: int,
+    current_admin: User = Depends(get_current_admin),
+    order_service: OrderService = Depends(get_order_service),
+):
+    """Clear all completed/cancelled orders for a branch (admin only)."""
+    try:
+        count = order_service.clear_branch_history(branch_id)
+        return {"message": f"Successfully deleted {count} historical records.", "count": count}
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
 @router.get("/orders/{order_id}", response_model=list[OrderHistoryResponse])
 def get_order_history(
     order_id: int,

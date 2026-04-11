@@ -4,13 +4,18 @@
 
 async function renderHistory(el) {
   html(el, `
-    <div class="page-header">
-      <h2>Order History</h2>
-      <div class="flex gap-3">
-        <button class="btn btn-primary" id="refresh-history">Refresh</button>
+    <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+      <h2 style="margin:0;">Order History</h2>
+      <div class="flex" style="gap:12px;">
+        <button class="btn btn-outline" id="refresh-history">
+          <i data-lucide="refresh-cw" style="width:18px;height:18px;"></i> Refresh
+        </button>
         ${isAdmin() ? `
           <button id="export-branch-history" class="btn btn-success">
-            <i data-lucide="download" style="width:18px;height:18px;margin-right:8px;"></i> Full Branch Excel
+            <i data-lucide="download" style="width:18px;height:18px;"></i> Full Branch Excel
+          </button>
+          <button id="clear-branch-history" class="btn btn-danger">
+            <i data-lucide="trash-2" style="width:18px;height:18px;"></i> Clear History
           </button>` : ''}
       </div>
     </div>
@@ -69,6 +74,25 @@ async function renderHistory(el) {
         `/history/branches/${bid}/export-excel`,
         `branch_${bid}_detailed_history.xlsx`
       );
+    });
+  }
+
+  const clearBtn = $('#clear-branch-history');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', async () => {
+      const confirmed = await confirmAction(
+        'Clear Branch History',
+        `Are you sure you want to permanently delete ALL completed and cancelled orders for branch #${bid}? This action cannot be undone.`,
+        { confirmText: 'Clear Branch History', danger: true }
+      );
+      if (!confirmed) return;
+      try {
+        const res = await api.del(`/history/branches/${bid}/clear`);
+        toast(res.message, 'success');
+        renderHistory(el);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
     });
   }
 }

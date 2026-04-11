@@ -1,12 +1,21 @@
 
 // ── Modal / Drawer / Tabs ───────────────────────────────────
-function showModal(title, content) {
+// ── Modal / Drawer / Tabs ───────────────────────────────────
+function showModal(title, content, showHeader = true) {
+  let headerHtml = '';
+  if (showHeader) {
+    headerHtml = `<div class="modal-header"><h3 style="margin:0; font-size:1.25rem;">${title}</h3><button class="btn btn-ghost btn-icon" id="modal-close-btn"><i data-lucide="x"></i></button></div>`;
+  } else {
+    // If no header, we still might want a close button floating
+    headerHtml = `<button class="btn btn-ghost btn-icon" id="modal-close-btn" style="position:absolute; right:16px; top:16px; z-index:10;"><i data-lucide="x"></i></button>`;
+  }
+  
   html($('#modal-container'), `
-    <div class="modal-header"><h3>${title}</h3><button class="btn btn-ghost btn-icon" id="modal-close-btn"><i data-lucide="x"></i></button></div>
-    <div class="modal-body">${content}</div>
+    ${headerHtml}
+    <div class="modal-body" style="${!showHeader ? 'padding-top:24px;' : ''}">${content}</div>
   `);
   show($('#modal-overlay'));
-  $('#modal-close-btn').addEventListener('click', closeModal);
+  $('#modal-close-btn')?.addEventListener('click', closeModal);
   $('#modal-overlay').addEventListener('click', (e) => {
     if (e.target === $('#modal-overlay')) closeModal();
   });

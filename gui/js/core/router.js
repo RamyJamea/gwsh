@@ -45,7 +45,7 @@ function buildSidebar() {
   });
 }
 
-function navigate(route) {
+function navigate(route, pushState = true) {
   // ── SECURITY: Prevent admins from accessing New Order page ──
   if (route === 'pos' && isAdmin()) {
     toast('Admins are not allowed to create new orders.', 'warning');
@@ -55,7 +55,25 @@ function navigate(route) {
   state.currentRoute = route;
   buildSidebar();
   renderPage();
+
+  if (pushState) {
+    if (window.location.hash !== '#' + route) {
+      window.history.pushState({ route }, '', '#' + route);
+    }
+  }
 }
+
+window.addEventListener('popstate', (e) => {
+  // User clicked Back or Forward
+  let route = 'dashboard';
+  if (e.state && e.state.route) {
+    route = e.state.route;
+  } else {
+    const hash = window.location.hash.substring(1);
+    if (hash) route = hash;
+  }
+  navigate(route, false);
+});
 
 // ── Enter App ───────────────────────────────────────────────
 async function enterApp() {
@@ -106,11 +124,15 @@ async function enterApp() {
   }
 
   buildSidebar();
-  navigate('dashboard');
+  const hash = window.location.hash.substring(1);
+  navigate(hash || 'dashboard', true);
 }
 
 // ── Page Router ─────────────────────────────────────────────
 function renderPage() {
+  if (typeof closeModal === 'function') closeModal();
+  if (typeof closeDrawer === 'function') closeDrawer();
+
   const content = $('#content');
   const route = state.currentRoute;
 
