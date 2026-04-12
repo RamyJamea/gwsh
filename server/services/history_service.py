@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import timedelta
 from typing import Sequence
 from io import BytesIO
 from sqlalchemy.orm import Session
@@ -82,7 +83,7 @@ class OrderHistoryService(BaseService):
             summary_data.append(
                 {
                     "History ID": h.id,
-                    "Timestamp": h.timestamp,
+                    "Timestamp": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                     "Action": (
                         h.action.value if hasattr(h.action, "value") else str(h.action)
                     ),
@@ -97,7 +98,7 @@ class OrderHistoryService(BaseService):
         for h in detailed_histories:
             hist_meta = {
                 "History ID": h.id,
-                "Timestamp": h.timestamp,
+                "Timestamp": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                 "Action": (
                     h.action.value if hasattr(h.action, "value") else str(h.action)
                 ),
@@ -217,7 +218,7 @@ class OrderHistoryService(BaseService):
                         if hasattr(last_h.action, "value")
                         else str(last_h.action)
                     ),
-                    "Final Timestamp": last_h.timestamp,
+                    "Final Timestamp (TRT)": (last_h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if last_h.timestamp else "N/A",
                     "Final Cashier": (
                         last_h.cashier.username
                         if getattr(last_h, "cashier", None)
@@ -236,7 +237,7 @@ class OrderHistoryService(BaseService):
                 {
                     "Order ID": h.order_id,
                     "History ID": h.id,
-                    "Timestamp": h.timestamp,
+                    "Timestamp (TRT)": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                     "Action": (
                         h.action.value if hasattr(h.action, "value") else str(h.action)
                     ),
@@ -254,7 +255,7 @@ class OrderHistoryService(BaseService):
             hist_meta = {
                 "Order ID": h.order_id,
                 "History ID": h.id,
-                "Timestamp": h.timestamp,
+                "Timestamp (TRT)": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                 "Action": (
                     h.action.value if hasattr(h.action, "value") else str(h.action)
                 ),

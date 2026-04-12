@@ -203,53 +203,53 @@ async function showOrderDetail(orderId, defaultTab = null) {
       <!-- ITEMS (full products + extras) -->
       <div class="tab-content" id="tab-items">
         ${(() => {
-          let itemsToShow = [];
-          
-          if (canEdit) {
-             // For active orders, use the fresh order items instead of potentially stale history snapshot
-             itemsToShow = order.order_items || [];
-          } else {
-             // For completed orders, prefer the history snapshot since the data structure is permanently locked
-             const latestHistory = historyData.length ? historyData[historyData.length - 1] : null;
-             itemsToShow = latestHistory?.order_history_items || order.order_items || [];
-          }
+        let itemsToShow = [];
 
-          if (!itemsToShow.length) {
-            return `<div class="empty-state"><p>No items in this order</p></div>`;
-          }
+        if (canEdit) {
+          // For active orders, use the fresh order items instead of potentially stale history snapshot
+          itemsToShow = order.order_items || [];
+        } else {
+          // For completed orders, prefer the history snapshot since the data structure is permanently locked
+          const latestHistory = historyData.length ? historyData[historyData.length - 1] : null;
+          itemsToShow = latestHistory?.order_history_items || order.order_items || [];
+        }
 
-          // Aggregate visually
-          const aggregated = [];
-          itemsToShow.forEach(item => {
-             const extras = item.order_item_extras || item.extras || [];
-             const existing = aggregated.find(agg => {
-                if (agg.menu_item_id !== item.menu_item_id) return false;
-                if (agg.extras.length !== extras.length) return false;
-                const e1 = agg.extras.map(e => e.menu_item_extra_id || e.id).sort().join(',');
-                const e2 = extras.map(e => e.menu_item_extra_id || e.id).sort().join(',');
-                return e1 === e2;
-             });
+        if (!itemsToShow.length) {
+          return `<div class="empty-state"><p>No items in this order</p></div>`;
+        }
 
-             if (existing) {
-                existing.quantity += item.quantity;
-                existing.total_price += (item.quantity * (item.price_at_time || item.price || 0));
-             } else {
-                let productName = item.menu_item_name;
-                if (!productName) {
-                  const mi = state.menuItems?.find(m => m.id === item.menu_item_id);
-                  productName = mi ? (mi._productName || `Item #${mi.id}`) : `Item #${item.menu_item_id || item.id}`;
-                }
-                aggregated.push({
-                   ...item,
-                   productName,
-                   extras,
-                   quantity: item.quantity || 1,
-                   total_price: ((item.quantity || 1) * (item.price_at_time || item.price || 0))
-                });
-             }
+        // Aggregate visually
+        const aggregated = [];
+        itemsToShow.forEach(item => {
+          const extras = item.order_item_extras || item.extras || [];
+          const existing = aggregated.find(agg => {
+            if (agg.menu_item_id !== item.menu_item_id) return false;
+            if (agg.extras.length !== extras.length) return false;
+            const e1 = agg.extras.map(e => e.menu_item_extra_id || e.id).sort().join(',');
+            const e2 = extras.map(e => e.menu_item_extra_id || e.id).sort().join(',');
+            return e1 === e2;
           });
 
-          return `
+          if (existing) {
+            existing.quantity += item.quantity;
+            existing.total_price += (item.quantity * (item.price_at_time || item.price || 0));
+          } else {
+            let productName = item.menu_item_name;
+            if (!productName) {
+              const mi = state.menuItems?.find(m => m.id === item.menu_item_id);
+              productName = mi ? (mi._productName || `Item #${mi.id}`) : `Item #${item.menu_item_id || item.id}`;
+            }
+            aggregated.push({
+              ...item,
+              productName,
+              extras,
+              quantity: item.quantity || 1,
+              total_price: ((item.quantity || 1) * (item.price_at_time || item.price || 0))
+            });
+          }
+        });
+
+        return `
             <div style="max-height: 70vh; overflow-y: auto; padding-right: 8px;">
               <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem;">
                 ${aggregated.map(agg => `
@@ -278,7 +278,7 @@ async function showOrderDetail(orderId, defaultTab = null) {
                 `).join('')}
               </ul>
             </div>`;
-        })()}
+      })()}
       </div>
 
       <!-- DETAILED HISTORY TIMELINE -->
@@ -411,7 +411,7 @@ async function loadDrawerAddItems(orderId) {
 
   const grid = document.getElementById('drawer-add-product-grid');
   const searchInput = document.getElementById('drawer-add-search-input');
-  
+
   const mainView = document.getElementById('add-items-main-view');
   const extrasView = document.getElementById('add-items-extras-view');
 
@@ -443,7 +443,7 @@ async function loadDrawerAddItems(orderId) {
             <div class="product-size">${mi._sizeName || ''}</div>
             <div class="product-price">${formatMoney(mi.price)}</div>
             ${mi.menu_items_extras && mi.menu_items_extras.length ?
-            `<div class="product-extras">+${mi.menu_items_extras.length} extras</div>` : ''}
+          `<div class="product-extras">+${mi.menu_items_extras.length} extras</div>` : ''}
           </div>
         </div>
       `).join('');
@@ -518,7 +518,7 @@ async function loadDrawerAddItems(orderId) {
     btnSave.parentNode.replaceChild(newBtnSave, btnSave);
     newBtnSave.addEventListener('click', async () => {
       if (pendingItems.length === 0) return;
-      
+
       const payload = {
         items: pendingItems.map(pi => ({
           menu_item_id: pi.id,
@@ -538,7 +538,7 @@ async function loadDrawerAddItems(orderId) {
         await api.post(`/orders/${orderId}/items`, payload);
         toast('<div style="display:flex; align-items:center; gap:8px;"><i data-lucide="check-circle" style="width:18px;height:18px;"></i> Items added successfully</div>', 'success');
         if (typeof showOrderDetail === 'function') {
-            showOrderDetail(orderId, 'items');
+          showOrderDetail(orderId, 'items');
         }
       } catch (err) {
         toast(err.message, 'error');
@@ -556,8 +556,8 @@ async function loadDrawerAddItems(orderId) {
     if (!mi) return;
 
     const addToPending = (miId, name, price, selectedExtras = []) => {
-      const existing = pendingItems.find(pi => 
-        pi.id === miId && 
+      const existing = pendingItems.find(pi =>
+        pi.id === miId &&
         JSON.stringify((pi.extras || []).map(e => e.id).sort()) === JSON.stringify(selectedExtras.map(e => e.id).sort())
       );
       if (existing) {
@@ -582,7 +582,7 @@ async function loadDrawerAddItems(orderId) {
     extrasView.classList.remove('hidden');
 
     document.getElementById('add-items-extras-title').textContent = `Select Extras for ${mi._productName || 'Item'}`;
-    
+
     let extrasHtml = mi.menu_items_extras.map(ex => {
       const name = ex.name ||
         (state.extras && state.extras.find(e => e.id === (ex.extra_id || ex.id))
@@ -603,11 +603,11 @@ async function loadDrawerAddItems(orderId) {
     const oldConfirm = document.getElementById('add-items-confirm-extras');
     const oldSkip = document.getElementById('add-items-skip-extras');
     const oldCancel = document.getElementById('add-items-cancel-extras');
-    
+
     const btnConfirm = oldConfirm.cloneNode(true);
     const btnSkip = oldSkip.cloneNode(true);
     const btnCancel = oldCancel.cloneNode(true);
-    
+
     oldConfirm.parentNode.replaceChild(btnConfirm, oldConfirm);
     oldSkip.parentNode.replaceChild(btnSkip, oldSkip);
     oldCancel.parentNode.replaceChild(btnCancel, oldCancel);
@@ -619,14 +619,14 @@ async function loadDrawerAddItems(orderId) {
       });
       mainView.classList.remove('hidden');
       extrasView.classList.add('hidden');
-      
+
       addToPending(mi.id, mi._productName || `Item #${mi.id}`, mi.price, selected);
     });
 
     btnSkip.addEventListener('click', () => {
       mainView.classList.remove('hidden');
       extrasView.classList.add('hidden');
-      
+
       addToPending(mi.id, mi._productName || `Item #${mi.id}`, mi.price, []);
     });
 

@@ -110,7 +110,16 @@ function formatMoney(n) {
 
 function formatDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleString();
+  let dateStr = String(d);
+  if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+    dateStr += 'Z';
+  }
+  return new Date(dateStr).toLocaleString('en-US', {
+    timeZone: 'Europe/Istanbul',
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: true
+  });
 }
 // ── NEW: Free table when order is canceled or completed ─────────────────────
 async function finalizeOrder(orderId) {
