@@ -7,20 +7,20 @@ from .base import Base, AuditMixin, ORPHAN
 
 if TYPE_CHECKING:
     from .menu_item_extra import MenuItemModel
-    from .history import OrderHistoryModel
-    from .history_item_extra import OrderHistoryItemExtraModel
+    from .history import HistoryModel
+    from .history_item_extra import HistoryItemExtraModel
 
-class OrderHistoryItemModel(Base, AuditMixin):
-    __tablename__ = TableEnum.ORDERS_HISTORIES_ITEMS.value
+class HistoryItemModel(Base, AuditMixin):
+    __tablename__ = TableEnum.HISTORIES_ITEMS.value
 
-    order_history_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.ORDERS_HISTORIES.value}.id", ondelete="CASCADE"), index=True)
+    history_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.HISTORIES.value}.id", ondelete="CASCADE"), index=True)
     menu_item_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.MENU_ITEMS.value}.id"), index=True)
     
     quantity: Mapped[int]
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
-    menu_item: Mapped["MenuItemModel"] = relationship(back_populates="orders_histories_items")
-    order_history: Mapped["OrderHistoryModel"] = relationship(back_populates="orders_histories_items")
-    orders_items_extras: Mapped[list["OrderHistoryItemExtraModel"]] = relationship(
-        back_populates="order_history_item", cascade=ORPHAN, passive_deletes=True
+    menu_item: Mapped["MenuItemModel"] = relationship(back_populates="histories_items")
+    history: Mapped["HistoryModel"] = relationship(back_populates="histories_items")
+    histories_items_extras: Mapped[list["HistoryItemExtraModel"]] = relationship(
+        back_populates="history_item", cascade=ORPHAN, passive_deletes=True
     )

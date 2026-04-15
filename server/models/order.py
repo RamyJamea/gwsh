@@ -8,7 +8,7 @@ from .base import Base, AuditMixin, ORPHAN
 if TYPE_CHECKING:
     from .branch import BranchModel, TableModel
     from .user import UserModel
-    from .history import OrderHistoryModel
+    from .history import HistoryModel
     from .order_item import OrderItemModel
 
 
@@ -29,6 +29,6 @@ class OrderModel(Base, AuditMixin):
     orders_items: Mapped[list["OrderItemModel"]] = relationship(
         back_populates="order", cascade=ORPHAN, passive_deletes=True
     )
-    orders_histories: Mapped[list["OrderHistoryModel"]] = relationship(
+    histories: Mapped[list["HistoryModel"]] = relationship(
         back_populates="order", cascade=ORPHAN, passive_deletes=True
     )

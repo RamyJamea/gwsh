@@ -1,7 +1,20 @@
-from .history import OrderHistory, OrderHistoryItem, OrderHistoryItemExtra
-from .product import Product, Category, Extra, Size
-from .branch import Branch, RestaurantTable
-from .menu_item_extra import MenuItemExtra, MenuItem
-from .order import Order, OrderItem, OrderItemExtra
-from .user import User
-from .base import Base
+from .branch import BranchModel
+from .table import TableModel
+
+from .history import HistoryModel
+from .history_item import HistoryItemModel
+from .history_item_extra import HistoryItemExtraModel
+
+from .menu_item import MenuItemModel
+from .menu_item_extra import MenuItemExtraModel
+
+from .order import OrderModel
+from .order_item import OrderItemModel
+from .order_item_extra import OrderItemExtraModel
+
+from .category import Category
+from .product import ProductModel
+from .size import SizeModel
+from .extra import ExtraModel
+
+from .user import UserModel

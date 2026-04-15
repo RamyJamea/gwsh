@@ -9,10 +9,10 @@ from .base import Base, AuditMixin, ORPHAN
 if TYPE_CHECKING:
     from .order import OrderModel
     from .user import UserModel
-    from .history_item import OrderHistoryItemModel
+    from .history_item import HistoryItemModel
 
 
-class OrderHistoryModel(Base, AuditMixin):
+class HistoryModel(Base, AuditMixin):
     __tablename__ = TableEnum.ORDERS_HISTORIES.value
 
     order_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.ORDERS.value}.id", ondelete="CASCADE"), index=True)
@@ -24,8 +24,8 @@ class OrderHistoryModel(Base, AuditMixin):
     timestamp: Mapped[datetime] = mapped_column(server_default=func.now())
     total_amount_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
-    cashier: Mapped["UserModel"] = relationship(back_populates="orders_histories")
-    order: Mapped["OrderModel"] = relationship(back_populates="orders_histories")
-    order_history_items: Mapped[list["OrderHistoryItemModel"]] = relationship(
-        back_populates="order_history", cascade=ORPHAN, passive_deletes=True
+    cashier: Mapped["UserModel"] = relationship(back_populates="histories")
+    order: Mapped["OrderModel"] = relationship(back_populates="histories")
+    history_items: Mapped[list["HistoryItemModel"]] = relationship(
+        back_populates="history", cascade=ORPHAN, passive_deletes=True
     )
