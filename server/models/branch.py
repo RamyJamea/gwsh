@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from .user import UserModel
     from .menu_item_extra import MenuItem
     from .order import Order
-    from .table import RestaurantTable
+    from .table import TableModel
 
 
 class BranchModel(Base, AuditMixin):
@@ -16,7 +16,7 @@ class BranchModel(Base, AuditMixin):
     name: Mapped[str] = mapped_column(unique=True, index=True)
     is_active: Mapped[bool] = mapped_column(default=True)
 
-    tables: Mapped[list["RestaurantTable"]] = relationship(back_populates="branch", cascade=ORPHAN)
+    tables: Mapped[list["TableModel"]] = relationship(back_populates="branch", cascade=ORPHAN)
     users: Mapped[list["UserModel"]] = relationship(back_populates="branch", cascade=ORPHAN)
     menu_items: Mapped[list["MenuItem"]] = relationship(back_populates="branch", cascade=ORPHAN)
     orders: Mapped[list["Order"]] = relationship(back_populates="branch")

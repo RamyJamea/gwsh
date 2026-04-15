@@ -2,20 +2,19 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, AuditMixin
+from ..core.enums import TableEnum
 
 if TYPE_CHECKING:
-    from .user import User
-    from .menu_item_extra import MenuItem
+    from .branch import BranchModel
     from .order import Order
-    from .branch import Branch
 
 
-class RestaurantTable(Base, AuditMixin):
-    __tablename__ = "tables"
+class TableModel(Base, AuditMixin):
+    __tablename__ = TableEnum.TABLES.value
 
-    branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
-    num_chairs: Mapped[int]
+    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id"))
+    num_chairs: Mapped[int | 0] = mapped_column(default=0)
     is_available: Mapped[bool] = mapped_column(default=True)
 
-    branch: Mapped["Branch"] = relationship(back_populates="tables")
+    branch: Mapped["BranchModel"] = relationship(back_populates="tables")
     orders: Mapped[list["Order"]] = relationship(back_populates="table")
