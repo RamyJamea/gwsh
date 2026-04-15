@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, AuditMixin, ORPHAN
 from ..core.enums import TableEnum
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
 class BranchModel(Base, AuditMixin):
     __tablename__ = TableEnum.BRANCHES.value
 
-    name: Mapped[str] = mapped_column(unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255) ,unique=True, index=True)
     is_active: Mapped[bool] = mapped_column(default=True)
 
     tables: Mapped[list["TableModel"]] = relationship(back_populates="branch", cascade=ORPHAN)

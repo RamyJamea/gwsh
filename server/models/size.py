@@ -1,18 +1,16 @@
 from typing import TYPE_CHECKING
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey
-from .base import Base, AuditMixin
+from sqlalchemy import String
+from .base import Base, AuditMixin, ORPHAN
+from ..core.enums import TableEnum
 
 if TYPE_CHECKING:
-    from .menu_item_extra import MenuItem, MenuItemExtra
-    from .category import Category
+    from .menu_item import MenuItem
 
 
 class Size(Base, AuditMixin):
-    __tablename__ = "sizes"
+    __tablename__ = TableEnum.SIZES.value
 
-    name: Mapped[str]
-
-    menu_items: Mapped[list["MenuItem"]] = relationship(
-        back_populates="size", cascade="all, delete-orphan"
-    )
+    name: Mapped[str] = mapped_column(String(255), index=True, unique=True)
+    
+    menu_items: Mapped[list["MenuItem"]] = relationship(back_populates="size", cascade=ORPHAN)
