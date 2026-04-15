@@ -2,26 +2,26 @@ from typing import TYPE_CHECKING
 from decimal import Decimal
 from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from ..core.enums import ActionEnum, PaymentEnum
-from .base import Base, AuditMixin
+from ..core.enums import TableEnum
+from .base import Base, AuditMixin, ORPHAN
 
 if TYPE_CHECKING:
-    from .branch import Branch, RestaurantTable
-    from .user import User
-    from .history import OrderHistory
-    from .menu_item_extra import MenuItem, MenuItemExtra
-    from .order import Order
-    from .order_item_extra import OrderItemExtra
-class OrderItem(Base, AuditMixin):
-    __tablename__ = "order_items"
+    from .menu_item import MenuItemModel
+    from .order import OrderModel
+    from .order_item_extra import OrderItemExtraModel
 
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
-    menu_item_id: Mapped[int] = mapped_column(ForeignKey("menu_items.id"))
+
+class OrderItemModel(Base, AuditMixin):
+    __tablename__ = TableEnum.ORDERS_ITEMS.value
+
+    order_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.ORDERS.value}.id", ondelete="CASCADE"))
+    menu_item_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.MENU_ITEMS.value}.id"))
+
     quantity: Mapped[int]
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
-    order: Mapped["Order"] = relationship(back_populates="order_items")
-    order_item_extras: Mapped[list["OrderItemExtra"]] = relationship(
-        back_populates="order_item", cascade="all, delete-orphan"
+    menu_item: Mapped["MenuItemModel"] = relationship(back_populates="orders_items")
+    order: Mapped["OrderModel"] = relationship(back_populates="orders_items")
+    order_items_extras: Mapped[list["OrderItemExtraModel"]] = relationship(
+        back_populates="order_item", cascade=ORPHAN, passive_deletes=True
     )
-    menu_item: Mapped["MenuItem"] = relationship(back_populates="order_items")

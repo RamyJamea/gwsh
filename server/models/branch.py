@@ -7,7 +7,7 @@ from ..core.enums import TableEnum
 if TYPE_CHECKING:
     from .user import UserModel
     from .menu_item_extra import MenuItemModel
-    from .order import Order
+    from .order import OrderModel
     from .table import TableModel
 
 
@@ -20,4 +20,4 @@ class BranchModel(Base, AuditMixin):
     tables: Mapped[list["TableModel"]] = relationship(back_populates="branch", cascade=ORPHAN)
     users: Mapped[list["UserModel"]] = relationship(back_populates="branch", cascade=ORPHAN)
     menu_items: Mapped[list["MenuItemModel"]] = relationship(back_populates="branch", cascade=ORPHAN)
-    orders: Mapped[list["Order"]] = relationship(back_populates="branch")
+    orders: Mapped[list["OrderModel"]] = relationship(back_populates="branch")

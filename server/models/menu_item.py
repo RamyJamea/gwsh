@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from .product import ProductModel
     from .size import SizeModel
     from .branch import BranchModel
-    from .order import OrderItem
+    from .order import OrderItemModel
     from .menu_item_extra import MenuItemExtraModel
 
 
@@ -30,7 +30,7 @@ class MenuItemModel(Base, AuditMixin):
     branch: Mapped["BranchModel"] = relationship(back_populates="menu_items")
     product: Mapped["ProductModel"] = relationship(back_populates="menu_items")
     size: Mapped["SizeModel"] = relationship(back_populates="menu_items")
-    order_items: Mapped[list["OrderItem"]] = relationship(back_populates="menu_item")
+    order_items: Mapped[list["OrderItemModel"]] = relationship(back_populates="menu_item")
     menu_items_extras: Mapped[list["MenuItemExtraModel"]] = relationship(
         back_populates="menu_item", cascade=ORPHAN, passive_deletes=True
     )

@@ -8,6 +8,7 @@ from ..core.enums import TableEnum
 if TYPE_CHECKING:
     from .extra import ExtraModel
     from .menu_item import MenuItemModel
+    from .order_item_extra import OrderItemExtraModel
 
 
 class MenuItemExtraModel(Base, AuditMixin):
@@ -17,5 +18,6 @@ class MenuItemExtraModel(Base, AuditMixin):
     extra_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.EXTRAS.value}.id"))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
-    menu_item: Mapped["MenuItemModel"] = relationship(back_populates="menu_items_extras")
     extra: Mapped["ExtraModel"] = relationship(back_populates="menu_items_extras")
+    menu_item: Mapped["MenuItemModel"] = relationship(back_populates="menu_items_extras")
+    order_items_extras: Mapped[list["OrderItemExtraModel"]] = relationship(back_populates="menu_items_extras")

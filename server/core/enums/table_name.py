@@ -11,3 +11,6 @@ class TableEnum(Enum):
     EXTRAS = "extras"
     MENU_ITEMS = "menu_items"
     MENU_ITEMS_EXTRAS = "menu_items_extras"
+    ORDERS = "orders"
+    ORDERS_ITEMS = "orders_items"
+    ORDERS_ITEMS_EXTRAS = "orders_items_extras"

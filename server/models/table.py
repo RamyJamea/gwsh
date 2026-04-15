@@ -6,7 +6,7 @@ from ..core.enums import TableEnum
 
 if TYPE_CHECKING:
     from .branch import BranchModel
-    from .order import Order
+    from .order import OrderModel
 
 
 class TableModel(Base, AuditMixin):
@@ -17,4 +17,4 @@ class TableModel(Base, AuditMixin):
     is_available: Mapped[bool] = mapped_column(default=True)
 
     branch: Mapped["BranchModel"] = relationship(back_populates="tables")
-    orders: Mapped[list["Order"]] = relationship(back_populates="table")
+    orders: Mapped[list["OrderModel"]] = relationship(back_populates="table")
