@@ -8,3 +8,4 @@ class TableEnum(Enum):
     PRODUCTS = "products"
     CATEGORIES = "categories"
     SIZES = "sizes"
+    EXTRAS = "extras"

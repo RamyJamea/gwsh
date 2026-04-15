@@ -1,18 +1,16 @@
 from typing import TYPE_CHECKING
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey
-from .base import Base, AuditMixin
+from sqlalchemy import String
+from .base import Base, AuditMixin, ORPHAN
+from ..core.enums import TableEnum
 
 if TYPE_CHECKING:
-    from .menu_item_extra import MenuItem, MenuItemExtra
-    from .product import Product
+    from .product import ProductModel
 
 
 class Category(Base, AuditMixin):
-    __tablename__ = "categories"
+    __tablename__ = TableEnum.CATEGORIES.value
 
-    name: Mapped[str]
+    name: Mapped[str] = mapped_column(String(255), index=True, unique=True)
 
-    products: Mapped[list["Product"]] = relationship(
-        back_populates="category", cascade="all, delete-orphan"
-    )
+    products: Mapped[list["ProductModel"]] = relationship(back_populates="category", cascade=ORPHAN)

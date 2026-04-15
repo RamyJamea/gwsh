@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from .menu_item import MenuItem
 
 
-class Size(Base, AuditMixin):
+class SizeModel(Base, AuditMixin):
     __tablename__ = TableEnum.SIZES.value
 
     name: Mapped[str] = mapped_column(String(255), index=True, unique=True)
