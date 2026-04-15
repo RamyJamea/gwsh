@@ -20,7 +20,7 @@ class OrderItemExtraModel(Base, AuditMixin):
         index=True,
     )
 
-    quantity: Mapped[int]
+    quantity: Mapped[int] = mapped_column()
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     extra_name: Mapped[str] = mapped_column(String(255))
 

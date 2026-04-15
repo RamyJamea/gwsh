@@ -21,7 +21,7 @@ class HistoryItemModel(Base, AuditMixin):
         index=True,
     )
     
-    quantity: Mapped[int]
+    quantity: Mapped[int] = mapped_column()
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     product_name: Mapped[str] = mapped_column(String(255))
     size_name: Mapped[str] = mapped_column(String(255))
