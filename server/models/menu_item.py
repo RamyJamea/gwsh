@@ -23,8 +23,8 @@ class MenuItemModel(Base, AuditMixin):
     )
 
     product_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.PRODUCTS.value}.id"))
-    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id"), ondelete="CASCADE")
-    size_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.SIZES.value}.id"), ondelete="CASCADE")
+    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id", ondelete="CASCADE"))
+    size_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.SIZES.value}.id", ondelete="CASCADE"))
 
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 

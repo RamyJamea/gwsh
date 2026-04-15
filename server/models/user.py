@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class UserModel(Base, AuditMixin):
     __tablename__ = TableEnum.USERS.value
 
-    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id"), ondelete="CASCADE")
+    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id", ondelete="CASCADE"))
 
     username: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     email: Mapped[str] = mapped_column(String(255),unique=True, index=True)

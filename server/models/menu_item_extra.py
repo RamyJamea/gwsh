@@ -19,7 +19,7 @@ class MenuItemExtraModel(Base, AuditMixin):
     )
 
     menu_item_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.MENU_ITEMS.value}.id", ondelete="CASCADE"))
-    extra_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.EXTRAS.value}.id"), ondelete="CASCADE")
+    extra_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.EXTRAS.value}.id", ondelete="CASCADE"))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
     extra: Mapped["ExtraModel"] = relationship(back_populates="menu_items_extras")

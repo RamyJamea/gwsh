@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class HistoryModel(Base, AuditMixin):
-    __tablename__ = TableEnum.ORDERS_HISTORIES.value
+    __tablename__ = TableEnum.HISTORIES.value
 
     order_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.ORDERS.value}.id", ondelete="CASCADE"), index=True)
     cashier_id: Mapped[int|None] = mapped_column(
