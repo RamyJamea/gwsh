@@ -12,7 +12,7 @@ from .order import OrderModel
 from .order_item import OrderItemModel
 from .order_item_extra import OrderItemExtraModel
 
-from .category import Category
+from .category import CategoryModel
 from .product import ProductModel
 from .size import SizeModel
 from .extra import ExtraModel

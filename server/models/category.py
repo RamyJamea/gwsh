@@ -8,9 +8,11 @@ if TYPE_CHECKING:
     from .product import ProductModel
 
 
-class Category(Base, AuditMixin):
+class CategoryModel(Base, AuditMixin):
     __tablename__ = TableEnum.CATEGORIES.value
 
     name: Mapped[str] = mapped_column(String(255), index=True, unique=True)
 
-    products: Mapped[list["ProductModel"]] = relationship(back_populates="category", cascade=ORPHAN)
+    products: Mapped[list["ProductModel"]] = relationship(
+        back_populates="category", cascade=ORPHAN, passive_deletes=True
+    )

@@ -15,10 +15,19 @@ if TYPE_CHECKING:
 class OrderModel(Base, AuditMixin):
     __tablename__ = TableEnum.ORDERS.value
 
-    cashier_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.USERS.value}.id"), index=True)
-    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id"), index=True)
-    table_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.TABLES.value}.id"), nullable=True, index=True)
-    
+    cashier_id: Mapped[int] = mapped_column(
+        ForeignKey(f"{TableEnum.USERS.value}.id", ondelete="SET NULL"), 
+        index=True
+    )
+    branch_id: Mapped[int] = mapped_column(
+        ForeignKey(f"{TableEnum.BRANCHES.value}.id", ondelete="RESTRICT"),
+        index=True
+    )
+    table_id: Mapped[int | None] = mapped_column(
+        ForeignKey(f"{TableEnum.TABLES.value}.id", ondelete="SET NULL"), 
+        nullable=True, 
+        index=True
+    )
     total_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     action: Mapped[ActionEnum] = mapped_column(default=ActionEnum.CREATE)
     payment_method: Mapped[PaymentEnum] = mapped_column(default=PaymentEnum.CASH)

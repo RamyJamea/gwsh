@@ -12,8 +12,8 @@ if TYPE_CHECKING:
 class TableModel(Base, AuditMixin):
     __tablename__ = TableEnum.TABLES.value
 
-    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id"))
-    num_chairs: Mapped[int | 0] = mapped_column(default=0)
+    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id"), ondelete="CASCADE")
+    num_chairs: Mapped[int] = mapped_column(default=0)
     is_available: Mapped[bool] = mapped_column(default=True)
 
     branch: Mapped["BranchModel"] = relationship(back_populates="tables")

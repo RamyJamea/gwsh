@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from .product import ProductModel
     from .size import SizeModel
     from .branch import BranchModel
-    from .order import OrderItemModel
+    from .order_item import OrderItemModel
     from .history_item import HistoryItemModel
     from .menu_item_extra import MenuItemExtraModel
 
@@ -23,8 +23,8 @@ class MenuItemModel(Base, AuditMixin):
     )
 
     product_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.PRODUCTS.value}.id"))
-    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id"))
-    size_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.SIZES.value}.id"))
+    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id"), ondelete="CASCADE")
+    size_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.SIZES.value}.id"), ondelete="CASCADE")
 
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 

@@ -13,4 +13,6 @@ class ExtraModel(Base, AuditMixin):
 
     name: Mapped[str] = mapped_column(String(255), index=True, unique=True)
 
-    menu_items_extras: Mapped[list["MenuItemExtraModel"]] = relationship(back_populates="extra", cascade=ORPHAN)
+    menu_items_extras: Mapped[list["MenuItemExtraModel"]] = relationship(
+        back_populates="extra", cascade=ORPHAN, passive_deletes=True
+    )
