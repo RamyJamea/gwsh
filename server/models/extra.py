@@ -5,7 +5,7 @@ from .base import Base, AuditMixin, ORPHAN
 from ..core.enums import TableEnum
 
 if TYPE_CHECKING:
-    from .menu_item_extra import MenuItemExtra
+    from .menu_item_extra import MenuItemExtraModel
 
 
 class ExtraModel(Base, AuditMixin):
@@ -13,4 +13,4 @@ class ExtraModel(Base, AuditMixin):
 
     name: Mapped[str] = mapped_column(String(255), index=True, unique=True)
 
-    menu_item_extras: Mapped[list["MenuItemExtra"]] = relationship(back_populates="extra", cascade=ORPHAN)
+    menu_items_extras: Mapped[list["MenuItemExtraModel"]] = relationship(back_populates="extra", cascade=ORPHAN)

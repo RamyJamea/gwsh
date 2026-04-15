@@ -5,7 +5,7 @@ from .base import Base, AuditMixin, ORPHAN
 from ..core.enums import TableEnum
 
 if TYPE_CHECKING:
-    from .menu_item import MenuItem
+    from .menu_item import MenuItemModel
     from .category import Category
 
 
@@ -17,4 +17,4 @@ class ProductModel(Base, AuditMixin):
     image_url: Mapped[str | None] = mapped_column(String(255), default=None)
 
     category: Mapped["Category"] = relationship(back_populates="products")
-    menu_items: Mapped[list["MenuItem"]] = relationship(back_populates="product", cascade=ORPHAN)
+    menu_items: Mapped[list["MenuItemModel"]] = relationship(back_populates="product", cascade=ORPHAN)

@@ -1,24 +1,21 @@
 from typing import TYPE_CHECKING
 from decimal import Decimal
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, UniqueConstraint, Numeric
+from sqlalchemy import ForeignKey, Numeric
 from .base import Base, AuditMixin
+from ..core.enums import TableEnum
 
 if TYPE_CHECKING:
-    from .product import Product, Size, Extra
-    from .branch import Branch
-    from .order import OrderItem
-    from .menu_item import MenuItem
+    from .extra import ExtraModel
+    from .menu_item import MenuItemModel
 
 
-class MenuItemExtra(Base, AuditMixin):
-    __tablename__ = "menu_items_extras"
+class MenuItemExtraModel(Base, AuditMixin):
+    __tablename__ = TableEnum.MENU_ITEMS_EXTRAS.value
 
-    menu_item_id: Mapped[int] = mapped_column(
-        ForeignKey("menu_items.id", ondelete="CASCADE")
-    )
-    extra_id: Mapped[int] = mapped_column(ForeignKey("extras.id"))
+    menu_item_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.MENU_ITEMS.value}.id", ondelete="CASCADE"))
+    extra_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.EXTRAS.value}.id"))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
-    menu_item: Mapped["MenuItem"] = relationship(back_populates="menu_items_extras")
-    extra: Mapped["Extra"] = relationship(back_populates="menu_item_extras")
+    menu_item: Mapped["MenuItemModel"] = relationship(back_populates="menu_items_extras")
+    extra: Mapped["ExtraModel"] = relationship(back_populates="menu_items_extras")

@@ -5,7 +5,7 @@ from .base import Base, AuditMixin, ORPHAN
 from ..core.enums import TableEnum
 
 if TYPE_CHECKING:
-    from .menu_item import MenuItem
+    from .menu_item import MenuItemModel
 
 
 class SizeModel(Base, AuditMixin):
@@ -13,4 +13,4 @@ class SizeModel(Base, AuditMixin):
 
     name: Mapped[str] = mapped_column(String(255), index=True, unique=True)
     
-    menu_items: Mapped[list["MenuItem"]] = relationship(back_populates="size", cascade=ORPHAN)
+    menu_items: Mapped[list["MenuItemModel"]] = relationship(back_populates="size", cascade=ORPHAN)
