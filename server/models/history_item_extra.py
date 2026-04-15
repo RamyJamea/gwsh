@@ -1,29 +1,25 @@
 from typing import TYPE_CHECKING
-from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import ForeignKey, func, Numeric
+from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from ..core.enums import ActionEnum
 from .base import Base, AuditMixin
+from ..core.enums import TableEnum
 
 if TYPE_CHECKING:
-    from .order import Order
-    from .user import User
-    from .menu_item_extra import MenuItem, MenuItemExtra
-    from .history import OrderHistory
-    from .history_item import OrderHistoryItem
-class OrderHistoryItemExtra(Base, AuditMixin):
-    __tablename__ = "order_history_item_extras"
+    from .menu_item_extra import MenuItemExtraModel
+    from .history_item import OrderHistoryItemModel
 
+
+class OrderHistoryItemExtraModel(Base, AuditMixin):
+    __tablename__ = TableEnum.ORDERS_HISTORIES_ITEMS_EXTRAS.value
+
+    menu_item_extra_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.MENU_ITEMS_EXTRAS.value}.id"), index=True)
     order_history_item_id: Mapped[int] = mapped_column(
-        ForeignKey("order_history_items.id", ondelete="CASCADE")
+        ForeignKey(f"{TableEnum.ORDERS_HISTORIES_ITEMS.value}.id", ondelete="CASCADE"), index=True
     )
-    menu_item_extra_id: Mapped[int] = mapped_column(ForeignKey("menu_items_extras.id"))
-    extra_name: Mapped[str] = mapped_column(nullable=True)
+
     quantity: Mapped[int]
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
-    menu_item_extra: Mapped["MenuItemExtra"] = relationship()
-    order_history_item: Mapped["OrderHistoryItem"] = relationship(
-        back_populates="order_item_extras"
-    )
+    menu_item_extra: Mapped["MenuItemExtraModel"] = relationship(back_populates="orders_histories_items_extras")
+    order_history_item: Mapped["OrderHistoryItemModel"] = relationship(back_populates="orders_items_extras")

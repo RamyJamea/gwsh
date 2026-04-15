@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 class OrderItemModel(Base, AuditMixin):
     __tablename__ = TableEnum.ORDERS_ITEMS.value
 
-    order_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.ORDERS.value}.id", ondelete="CASCADE"))
-    menu_item_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.MENU_ITEMS.value}.id"))
+    order_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.ORDERS.value}.id", ondelete="CASCADE"), index=True)
+    menu_item_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.MENU_ITEMS.value}.id"), index=True)
 
     quantity: Mapped[int]
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))

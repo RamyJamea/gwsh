@@ -1,33 +1,31 @@
 from typing import TYPE_CHECKING
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import ForeignKey, func, Numeric
+from sqlalchemy import ForeignKey, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from ..core.enums import ActionEnum
-from .base import Base, AuditMixin
+from ..core.enums import ActionEnum, TableEnum
+from .base import Base, AuditMixin, ORPHAN
 
 if TYPE_CHECKING:
-    from .order import Order
-    from .user import User
-    from .menu_item_extra import MenuItem, MenuItemExtra
-    from .history_item import OrderHistoryItem
+    from .order import OrderModel
+    from .user import UserModel
+    from .history_item import OrderHistoryItemModel
 
 
-class OrderHistory(Base, AuditMixin):
-    __tablename__ = "order_histories"
+class OrderHistoryModel(Base, AuditMixin):
+    __tablename__ = TableEnum.ORDERS_HISTORIES.value
 
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"))
-    cashier_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    order_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.ORDERS.value}.id", ondelete="CASCADE"), index=True)
+    cashier_id: Mapped[int|None] = mapped_column(
+        ForeignKey(f"{TableEnum.USERS.value}.id", ondelete="SET NULL"), nullable=True, index=True
     )
+
     action: Mapped[ActionEnum] = mapped_column(default=ActionEnum.CREATE)
     timestamp: Mapped[datetime] = mapped_column(server_default=func.now())
     total_amount_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
-    cashier: Mapped["User"] = relationship(back_populates="order_histories")
-    order: Mapped["Order"] = relationship(back_populates="order_histories")
-    order_history_items: Mapped[list["OrderHistoryItem"]] = relationship(
-        back_populates="order_history",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
+    cashier: Mapped["UserModel"] = relationship(back_populates="orders_histories")
+    order: Mapped["OrderModel"] = relationship(back_populates="orders_histories")
+    order_history_items: Mapped[list["OrderHistoryItemModel"]] = relationship(
+        back_populates="order_history", cascade=ORPHAN, passive_deletes=True
     )

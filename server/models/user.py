@@ -6,7 +6,7 @@ from .base import Base, AuditMixin
 
 if TYPE_CHECKING:
     from .branch import BranchModel
-    from .history import OrderHistory
+    from .history import OrderHistoryModel
     from .order import OrderModel
 
 
@@ -22,4 +22,4 @@ class UserModel(Base, AuditMixin):
 
     branch: Mapped["BranchModel"] = relationship(back_populates="users")
     orders: Mapped[list["OrderModel"]] = relationship(back_populates="cashier")
-    order_histories: Mapped[list["OrderHistory"]] = relationship(back_populates="cashier")
+    order_histories: Mapped[list["OrderHistoryModel"]] = relationship(back_populates="cashier")

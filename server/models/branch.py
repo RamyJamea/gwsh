@@ -6,7 +6,7 @@ from ..core.enums import TableEnum
 
 if TYPE_CHECKING:
     from .user import UserModel
-    from .menu_item_extra import MenuItemModel
+    from .menu_item import MenuItemModel
     from .order import OrderModel
     from .table import TableModel
 

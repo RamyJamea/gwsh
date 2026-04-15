@@ -13,10 +13,11 @@ if TYPE_CHECKING:
 class OrderItemExtraModel(Base, AuditMixin):
     __tablename__ = TableEnum.ORDERS_ITEMS_EXTRAS.value
 
-    order_item_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.ORDERS_ITEMS.value}.id", ondelete="CASCADE"))
-    menu_item_extra_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.MENU_ITEMS_EXTRAS.value}.id"))
+    order_item_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.ORDERS_ITEMS.value}.id", ondelete="CASCADE"), index=True)
+    menu_item_extra_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.MENU_ITEMS_EXTRAS.value}.id"), index=True)
+
     quantity: Mapped[int]
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
-    order_item: Mapped["OrderItemModel"] = relationship(back_populates="order_items_extras")
-    menu_item_extra: Mapped["MenuItemExtraModel"] = relationship("order_items_extras")
+    order_item: Mapped["OrderItemModel"] = relationship(back_populates="orders_items_extras")
+    menu_item_extra: Mapped["MenuItemExtraModel"] = relationship(back_populates="orders_items_extras")

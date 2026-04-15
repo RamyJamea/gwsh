@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from .extra import ExtraModel
     from .menu_item import MenuItemModel
     from .order_item_extra import OrderItemExtraModel
+    from .history_item_extra import OrderHistoryItemExtraModel
 
 
 class MenuItemExtraModel(Base, AuditMixin):
@@ -21,3 +22,4 @@ class MenuItemExtraModel(Base, AuditMixin):
     extra: Mapped["ExtraModel"] = relationship(back_populates="menu_items_extras")
     menu_item: Mapped["MenuItemModel"] = relationship(back_populates="menu_items_extras")
     order_items_extras: Mapped[list["OrderItemExtraModel"]] = relationship(back_populates="menu_items_extras")
+    orders_histories_items_extras: Mapped[list["OrderHistoryItemExtraModel"]] = relationship(back_populates="menu_item_extra")

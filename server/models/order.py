@@ -8,16 +8,16 @@ from .base import Base, AuditMixin, ORPHAN
 if TYPE_CHECKING:
     from .branch import BranchModel, TableModel
     from .user import UserModel
-    from .history import OrderHistory
+    from .history import OrderHistoryModel
     from .order_item import OrderItemModel
 
 
 class OrderModel(Base, AuditMixin):
     __tablename__ = TableEnum.ORDERS.value
 
-    cashier_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.USERS.value}.id"))
-    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id"))
-    table_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.TABLES.value}.id"), nullable=True)
+    cashier_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.USERS.value}.id"), index=True)
+    branch_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.BRANCHES.value}.id"), index=True)
+    table_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.TABLES.value}.id"), nullable=True, index=True)
     
     total_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     action: Mapped[ActionEnum] = mapped_column(default=ActionEnum.CREATE)
@@ -29,11 +29,6 @@ class OrderModel(Base, AuditMixin):
     orders_items: Mapped[list["OrderItemModel"]] = relationship(
         back_populates="order", cascade=ORPHAN, passive_deletes=True
     )
-    orders_histories: Mapped[list["OrderHistory"]] = relationship(
+    orders_histories: Mapped[list["OrderHistoryModel"]] = relationship(
         back_populates="order", cascade=ORPHAN, passive_deletes=True
     )
-
-
-
-
-
