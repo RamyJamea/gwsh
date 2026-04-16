@@ -1,1 +1,2 @@
-from .repository import CustomDuplicateRecordException
+from .repository import DuplicateRecordException
+from .service import NotFoundException

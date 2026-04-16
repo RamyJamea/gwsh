@@ -28,7 +28,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    branch_id: int
+    branch_id: int | None = None
     password: StrongPassword = Field(..., min_length=8)
 
 
@@ -42,7 +42,7 @@ class UserUpdate(BaseModel):
 
 
 class UserResponse(UserBase, AuditSchema):
-    branch_id: int
+    branch_id: int | None = None
 
 
 class TokenData(BaseModel):

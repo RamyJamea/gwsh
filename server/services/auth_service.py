@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, status
 from jose import jwt
-from .user_service import UserService
+from .user import UserService
 from ..helpers import get_settings, verify_password
 
 SETTINGS = get_settings()

@@ -16,3 +16,4 @@ class AuditMixin:
 
 
 ORPHAN = "all, delete-orphan"
+LINKED = "save-update, merge"

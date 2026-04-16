@@ -1,3 +1,5 @@
+from .base import Base
+
 from .branch import BranchModel
 from .table import TableModel
 

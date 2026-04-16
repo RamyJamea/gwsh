@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, insert, Select, func
 from ..models.base import Base
-from ..helpers.exceptions import CustomDuplicateRecordException
+from ..helpers.exceptions import DuplicateRecordException
 
 T = TypeVar("T", bound="Base")
 
@@ -36,13 +36,24 @@ class BaseRepository(Generic[T]):
 
     async def get_pagination(
         self, skip: int = 0, limit: int = 100, include_deleted: bool = False, **filters
-    ) -> Sequence[T]:
+    ) -> Sequence[T] | None:
         stmt = select(self.model).filter_by(**filters)
         stmt = self._apply_soft_delete_filter(stmt, include_deleted)
         stmt = stmt.offset(skip).limit(limit)
 
         result = await self.session.scalars(stmt)
         return result.all()
+
+    async def create_one(self, obj_in: dict) -> T:
+        try:
+            db_obj = self.model(**obj_in)
+            self.session.add(db_obj)
+            await self.session.flush()
+            return db_obj
+
+        except IntegrityError as e:
+            await self.session.rollback()
+            raise DuplicateRecordException(f"{self.model.__name__} exists -- {e}")
 
     async def create_bulk(self, objs_in: list[dict]) -> Sequence[T]:
         if not objs_in:
@@ -57,9 +68,9 @@ class BaseRepository(Generic[T]):
 
         except IntegrityError as e:
             await self.session.rollback()
-            raise CustomDuplicateRecordException("Record already exists") from e
+            raise DuplicateRecordException(f"Record already exists -- {e}")
 
-    async def update(self, db_obj: T, updates: dict) -> T:
+    async def update_one(self, db_obj: T, updates: dict) -> T:
         try:
             for field, value in updates.items():
                 if hasattr(db_obj, field):
@@ -68,7 +79,7 @@ class BaseRepository(Generic[T]):
             return db_obj
         except IntegrityError as e:
             await self.session.rollback()
-            raise CustomDuplicateRecordException("Failed update") from e
+            raise DuplicateRecordException(f"Failed update -- {e}")
 
     async def delete_hard(self, db_obj: T) -> None:
         try:
@@ -76,7 +87,7 @@ class BaseRepository(Generic[T]):
             await self.session.flush()
         except IntegrityError as e:
             await self.session.rollback()
-            raise CustomDuplicateRecordException("Failed hard delete") from e
+            raise DuplicateRecordException(f"Failed hard delete -- {e}")
 
     async def delete_soft(self, db_obj: T) -> None:
         try:
@@ -88,4 +99,13 @@ class BaseRepository(Generic[T]):
                 await self.session.flush()
         except IntegrityError as e:
             await self.session.rollback()
-            raise CustomDuplicateRecordException("Failed soft delete") from e
+            raise DuplicateRecordException(f"Failed soft delete -- {e}")
+
+    async def revive_one(self, db_obj: T) -> None:
+        try:
+            if hasattr(db_obj, "deleted_at"):
+                db_obj.deleted_at = None
+                await self.session.flush()
+        except IntegrityError as e:
+            await self.session.rollback()
+            raise DuplicateRecordException(f"Failed revive -- {e}")

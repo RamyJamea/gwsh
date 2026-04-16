@@ -1,26 +1,23 @@
-from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import sessionmaker
+from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from .app_config import get_settings
 
 SETTINGS = get_settings()
-ENGINE = create_engine(
-    SETTINGS.SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+
+ASYNC_ENGINE = create_async_engine(
+    SETTINGS.SQLALCHEMY_DATABASE_URL,
+    echo=False,
+    future=True,
 )
 
-@event.listens_for(Engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    if "sqlite" in SETTINGS.SQLALCHEMY_DATABASE_URL:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
-
-SESSION = sessionmaker(autocommit=False, autoflush=False, bind=ENGINE)
+ASYNC_SESSION = async_sessionmaker(
+    bind=ASYNC_ENGINE,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,
+)
 
 
-def get_db():
-    db = SESSION()
-    try:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with ASYNC_SESSION() as db:
         yield db
-    finally:
-        db.close()

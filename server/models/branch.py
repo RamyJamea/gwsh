@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .base import Base, AuditMixin, ORPHAN
+from .base import Base, AuditMixin, ORPHAN, LINKED
 from ..helpers.enums import TableEnum
 
 if TYPE_CHECKING:
@@ -18,6 +18,6 @@ class BranchModel(Base, AuditMixin):
     is_active: Mapped[bool] = mapped_column(default=True)
 
     tables: Mapped[list["TableModel"]] = relationship(back_populates="branch", cascade=ORPHAN)
-    users: Mapped[list["UserModel"]] = relationship(back_populates="branch", cascade=ORPHAN)
+    users: Mapped[list["UserModel"]] = relationship(back_populates="branch", cascade=LINKED)
     menu_items: Mapped[list["MenuItemModel"]] = relationship(back_populates="branch", cascade=ORPHAN)
     orders: Mapped[list["OrderModel"]] = relationship(back_populates="branch")
