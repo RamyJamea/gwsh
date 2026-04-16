@@ -1,10 +1,35 @@
-from fastapi import APIRouter, Depends, status, Query, HTTPException
+from fastapi import APIRouter, Depends, status, Path, HTTPException, Query
 from ...models import UserModel
 from ...services import UserManagement
 from ...helpers.schemas import UserCreate, UserUpdate, UserResponse
 from ..dependencies import get_user_management
 
 router = APIRouter(prefix="/management/users", tags=["Management"])
+
+
+@router.get("/{username}/", response_model=UserResponse, status_code=status.HTTP_200_OK)
+async def get_user_endpoint(
+    username: str = Path(...),
+    service: UserManagement = Depends(get_user_management),
+):
+    try:
+        user = await service.get_user(username)
+        return UserResponse.model_validate(user)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/", response_model=list[UserResponse], status_code=status.HTTP_200_OK)
+async def get_users_endpoint(
+    skip: int = Query(default=0),
+    limit: int = Query(default=10),
+    service: UserManagement = Depends(get_user_management),
+):
+    try:
+        users = await service.get_users(skip, limit, False)
+        return [UserResponse.model_validate(user) for user in users]
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -15,5 +40,43 @@ async def create_user_endpoint(
     try:
         new_user = await service.create_user(payload)
         return UserResponse.model_validate(new_user)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.put(
+    "/{username}/",
+    response_model=UserResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def update_user_endpoint(
+    payload: UserUpdate,
+    username: str = Path(...),
+    service: UserManagement = Depends(get_user_management),
+):
+    try:
+        updated_user = await service.update_user(username, payload)
+        return UserResponse.model_validate(updated_user)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.delete("/soft/{username}/", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_soft_user_endpoint(
+    username: str = Path(...),
+    service: UserManagement = Depends(get_user_management),
+):
+    try:
+        await service.delete_soft_user(username)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@router.delete("/hard/{username}/", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_hard_user_endpoint(
+    username: str = Path(...),
+    service: UserManagement = Depends(get_user_management),
+):
+    try:
+        await service.delete_hard_user(username)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

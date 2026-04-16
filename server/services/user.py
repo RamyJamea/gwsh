@@ -18,7 +18,7 @@ class UserManagement:
         self.logger = structlog.get_logger(self.__class__.__name__)
 
     async def _get_user(self, username: str) -> UserModel:
-        return await self.get_one(username)
+        return await self.get_user(username)
 
     async def _branch_exists(self, branch_id: int):
         branch_obj = await self.branch_repo.get_one(branch_id)

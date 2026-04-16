@@ -83,7 +83,7 @@ class BaseRepository(Generic[T]):
 
     async def delete_hard(self, db_obj: T) -> None:
         try:
-            self.session.delete(db_obj)
+            await self.session.delete(db_obj)
             await self.session.flush()
         except IntegrityError as e:
             await self.session.rollback()
