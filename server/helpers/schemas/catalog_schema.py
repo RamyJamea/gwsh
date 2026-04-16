@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from .base_schema import AuditSchema
+from .base import AuditSchema
 
 
 class CategoryBase(BaseModel):

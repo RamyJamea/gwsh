@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from starlette import status
-from .core import ENGINE, seed_admin_user
+from .helpers import ENGINE, seed_admin_user
 from .models import *
 from .routes import auth_router, user_router
 from .routes import branch_router, table_router

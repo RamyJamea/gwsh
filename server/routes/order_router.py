@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from typing import Annotated
-from ..core.enums import RoleEnum
+from ..helpers.enums import RoleEnum
 from ..models import User
 from ..services import OrderService
-from ..core.dependencies import get_current_cashier, get_current_user, get_order_service
-from ..core.schemas.order_schema import *
+from ..helpers.auth import get_current_cashier, get_current_user, get_order_service
+from ..helpers.schemas.order_schema import *
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 

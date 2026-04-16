@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from ..repositories import UserRepository, BranchRepository
-from ..core.schemas import UserCreate, UserUpdate
-from ..core import get_password_hash
+from ..helpers.schemas import UserCreate, UserUpdate
+from ..helpers import get_password_hash
 from ..models import User
 from .base_service import BaseService
 

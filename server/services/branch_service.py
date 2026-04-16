@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from ..repositories import BranchRepository, RestaurantTableRepository
-from ..core.schemas import BranchCreate, BranchUpdate, TableCreate, TableUpdate
+from ..helpers.schemas import BranchCreate, BranchUpdate, TableCreate, TableUpdate
 from .base_service import BaseService
 
 

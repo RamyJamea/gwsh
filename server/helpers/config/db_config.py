@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
-from .config import get_settings
+from .app_config import get_settings
 
 SETTINGS = get_settings()
 ENGINE = create_engine(

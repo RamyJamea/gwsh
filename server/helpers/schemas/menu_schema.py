@@ -1,7 +1,7 @@
 from typing import Optional, List
 from decimal import Decimal
 from pydantic import BaseModel, Field
-from .base_schema import AuditSchema
+from .base import AuditSchema
 from .catalog_schema import ProductResponse, SizeResponse, ExtraResponse
 
 

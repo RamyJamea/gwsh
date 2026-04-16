@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from ..core.schemas import ExtraCreate, ExtraResponse
-from ..core.dependencies import get_extra_service, get_current_user, get_current_admin
+from ..helpers.schemas import ExtraCreate, ExtraResponse
+from ..helpers.auth import get_extra_service, get_current_user, get_current_admin
 from ..models import User
 from ..services import ExtraService
 

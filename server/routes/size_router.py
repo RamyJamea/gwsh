@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException
-from ..core.schemas import SizeCreate, SizeResponse
-from ..core.dependencies import get_size_service, get_current_user, get_current_admin
+from ..helpers.schemas import SizeCreate, SizeResponse
+from ..helpers.auth import get_size_service, get_current_user, get_current_admin
 from ..models import User
 from ..services import SizeService
 

@@ -1,7 +1,7 @@
 from typing import Sequence
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select
-from .base_repository import BaseRepository
+from .base import BaseRepository
 from ..models import Order, OrderItem, OrderItemExtra
 
 

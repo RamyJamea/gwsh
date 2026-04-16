@@ -3,7 +3,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, Numeric, UniqueConstraint
 from .base import Base, AuditMixin
-from ..core.enums import TableEnum
+from ..helpers.enums import TableEnum
 
 if TYPE_CHECKING:
     from .extra import ExtraModel

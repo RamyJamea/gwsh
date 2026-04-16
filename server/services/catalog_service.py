@@ -2,9 +2,9 @@ from sqlalchemy.orm import Session
 from typing import Sequence
 from ..repositories import CategoryRepository, ProductRepository
 from ..repositories import SizeRepository, ExtraRepository
-from ..core.schemas import CategoryCreate, CategoryUpdate
-from ..core.schemas import ProductCreate, ProductUpdate
-from ..core.schemas import SizeCreate, ExtraCreate
+from ..helpers.schemas import CategoryCreate, CategoryUpdate
+from ..helpers.schemas import ProductCreate, ProductUpdate
+from ..helpers.schemas import SizeCreate, ExtraCreate
 from ..models import Product
 from .base_service import BaseService
 

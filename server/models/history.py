@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from sqlalchemy import ForeignKey, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from ..core.enums import ActionEnum, TableEnum
+from ..helpers.enums import ActionEnum, TableEnum
 from .base import Base, AuditMixin, ORPHAN
 
 if TYPE_CHECKING:

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from ..core.schemas.menu_schema import MenuItemCreate, MenuItemUpdate
+from ..helpers.schemas.menu_schema import MenuItemCreate, MenuItemUpdate
 from ..repositories import MenuItemRepository, MenuItemExtraRepository
 from ..repositories import BranchRepository
 from ..repositories import ProductRepository, SizeRepository, ExtraRepository

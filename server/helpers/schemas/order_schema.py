@@ -1,7 +1,7 @@
 from decimal import Decimal
 from pydantic import BaseModel
 from ..enums import ActionEnum, PaymentEnum
-from .base_schema import AuditSchema
+from .base import AuditSchema
 from .menu_schema import MenuItemResponse
 
 

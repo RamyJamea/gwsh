@@ -3,7 +3,7 @@ from decimal import Decimal
 from sqlalchemy import ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, AuditMixin
-from ..core.enums import TableEnum
+from ..helpers.enums import TableEnum
 
 if TYPE_CHECKING:
     from .order_item import OrderItemModel

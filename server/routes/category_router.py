@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from ..core.schemas import CategoryCreate, CategoryUpdate, CategoryResponse
-from ..core.schemas import ProductResponse
-from ..core.dependencies import get_category_service, get_product_service
-from ..core.dependencies import get_current_user, get_current_admin
+from ..helpers.schemas import CategoryCreate, CategoryUpdate, CategoryResponse
+from ..helpers.schemas import ProductResponse
+from ..helpers.auth import get_category_service, get_product_service
+from ..helpers.auth import get_current_user, get_current_admin
 from ..models import User
 from ..services import CategoryService, ProductService
 

@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator, computed_field
 
 from ..enums import ActionEnum
-from .base_schema import AuditSchema
+from .base import AuditSchema
 
 
 class ORMBaseSchema(BaseModel):

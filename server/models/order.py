@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 from decimal import Decimal
 from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from ..core.enums import ActionEnum, PaymentEnum, TableEnum
+from ..helpers.enums import ActionEnum, PaymentEnum, TableEnum
 from .base import Base, AuditMixin, ORPHAN
 
 if TYPE_CHECKING:

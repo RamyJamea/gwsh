@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String
 from .base import Base, AuditMixin, ORPHAN
-from ..core.enums import TableEnum
+from ..helpers.enums import TableEnum
 
 if TYPE_CHECKING:
     from .product import ProductModel

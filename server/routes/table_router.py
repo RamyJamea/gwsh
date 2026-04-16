@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status, HTTPException
-from ..core.schemas import TableCreate, TableUpdate, TableRead
-from ..core.dependencies import get_table_service
-from ..core.dependencies import get_current_user, get_current_admin, get_current_cashier
+from ..helpers.schemas import TableCreate, TableUpdate, TableRead
+from ..helpers.auth import get_table_service
+from ..helpers.auth import get_current_user, get_current_admin, get_current_cashier
 from ..services import TableService
 from ..models import User
 
