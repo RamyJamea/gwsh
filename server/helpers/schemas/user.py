@@ -1,6 +1,23 @@
-from pydantic import BaseModel, Field, EmailStr, SecretStr
+from typing import Annotated
+from pydantic import BaseModel, Field, EmailStr, SecretStr, AfterValidator
+from zxcvbn import zxcvbn
 from ..enums import RoleEnum
 from .base import AuditSchema
+
+
+def validate_password_strength(value: SecretStr) -> SecretStr:
+    result = zxcvbn(value.get_secret_value())
+    if result["score"] < 3:
+        warning = result["feedback"]["warning"] or "Password is too weak or common."
+        raise ValueError(warning)
+    return value
+
+
+StrongPassword = Annotated[
+    SecretStr,
+    Field(min_length=8),
+    AfterValidator(validate_password_strength),
+]
 
 
 class UserBase(BaseModel):
@@ -12,7 +29,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     branch_id: int
-    password: SecretStr = Field(..., min_length=8)
+    password: StrongPassword = Field(..., min_length=8)
 
 
 class UserUpdate(BaseModel):
@@ -21,7 +38,7 @@ class UserUpdate(BaseModel):
     role: RoleEnum | None = None
     is_active: bool | None = None
     branch_id: int | None = None
-    password: str | None = Field(None, min_length=8)
+    password: StrongPassword | None = Field(None, min_length=8)
 
 
 class UserResponse(UserBase, AuditSchema):
@@ -34,4 +51,4 @@ class TokenData(BaseModel):
 
 
 class PasswordReset(BaseModel):
-    new_password: str = Field(..., min_length=8)
+    new_password: StrongPassword = Field(..., min_length=8)
