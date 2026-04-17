@@ -21,19 +21,18 @@ StrongPassword = Annotated[
 
 
 class UserBase(BaseModel):
-    username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
     role: RoleEnum = RoleEnum.CASHIER
     is_active: bool = True
 
 
 class UserCreate(UserBase):
+    username: str = Field(..., min_length=3, max_length=50)
     branch_id: int | None = None
     password: StrongPassword = Field(..., min_length=8)
 
 
 class UserUpdate(BaseModel):
-    username: str | None = Field(None, min_length=3, max_length=50)
     email: EmailStr | None = None
     role: RoleEnum | None = None
     is_active: bool | None = None
@@ -42,6 +41,7 @@ class UserUpdate(BaseModel):
 
 
 class UserResponse(UserBase, AuditSchema):
+    username: str = Field(..., min_length=3, max_length=50)
     branch_id: int | None = None
 
 
