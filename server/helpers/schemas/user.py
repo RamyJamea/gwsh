@@ -48,7 +48,3 @@ class UserResponse(UserBase, AuditSchema):
 class TokenData(BaseModel):
     access_token: str
     token_type: str = "bearer"
-
-
-class PasswordReset(BaseModel):
-    new_password: StrongPassword = Field(..., min_length=8)
