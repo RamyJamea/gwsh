@@ -29,7 +29,7 @@ class OrderModel(Base, AuditMixin):
         index=True
     )
     total_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2))
-    action: Mapped[ActionEnum] = mapped_column(default=ActionEnum.CREATE)
+    status: Mapped[ActionEnum] = mapped_column(default=ActionEnum.CREATE)
     payment_method: Mapped[PaymentEnum] = mapped_column(default=PaymentEnum.CASH)
 
     cashier: Mapped["UserModel"] = relationship(back_populates="orders")
