@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from ..helpers.schemas import ExtraCreate, ExtraResponse
-from ..helpers.auth import get_extra_service, get_current_user, get_current_admin
-from ..models import User
-from ..services import ExtraService
+from ...helpers.schemas import ExtraCreate, ExtraResponse
+from ...helpers.security import get_extra_service, get_current_user, get_current_admin
+from ...models import User
+from ...services import ExtraService
 
 router = APIRouter(prefix="/extras", tags=["Extras"])
 

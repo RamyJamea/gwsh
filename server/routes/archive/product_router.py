@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, status, HTTPException
-from ..helpers.schemas import ProductCreate, ProductUpdate, ProductResponse
-from ..helpers.auth import get_product_service, get_current_user, get_current_admin
-from ..models import User
-from ..services import ProductService
+from ...helpers.schemas import ProductCreate, ProductUpdate, ProductResponse
+from ...helpers.security import get_product_service, get_current_user, get_current_admin
+from ...models import User
+from ...services import ProductService
 
 router = APIRouter(prefix="/products", tags=["Products"])
 

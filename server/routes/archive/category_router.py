@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from ..helpers.schemas import CategoryCreate, CategoryUpdate, CategoryResponse
-from ..helpers.schemas import ProductResponse
-from ..helpers.auth import get_category_service, get_product_service
-from ..helpers.auth import get_current_user, get_current_admin
-from ..models import User
-from ..services import CategoryService, ProductService
+from ...helpers.schemas import CategoryCreate, CategoryUpdate, CategoryResponse
+from ...helpers.schemas import ProductResponse
+from ...helpers.security import get_category_service, get_product_service
+from ...helpers.security import get_current_user, get_current_admin
+from ...models import User
+from ...services import CategoryService, ProductService
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
 

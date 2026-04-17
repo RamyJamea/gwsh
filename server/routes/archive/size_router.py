@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, status, HTTPException
-from ..helpers.schemas import SizeCreate, SizeResponse
-from ..helpers.auth import get_size_service, get_current_user, get_current_admin
-from ..models import User
-from ..services import SizeService
+from ...helpers.schemas import SizeCreate, SizeResponse
+from ...helpers.security import get_size_service, get_current_user, get_current_admin
+from ...models import User
+from ...services import SizeService
 
 router = APIRouter(prefix="/sizes", tags=["Sizes"])
 

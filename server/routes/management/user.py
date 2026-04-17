@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, status, Path, HTTPException, Query
-from ...models import UserModel
-from ...services import UserManagement
 from ...helpers.schemas import UserCreate, UserUpdate, UserResponse
-from ..dependencies import get_user_management
+from ...services import UserManagement
+from ..utils import get_user_management, RequirePermission, PermissionEnum
 
 router = APIRouter(prefix="/management/users", tags=["Management"])
 
@@ -12,6 +11,7 @@ async def get_users_endpoint(
     skip: int = Query(default=0),
     limit: int = Query(default=10),
     service: UserManagement = Depends(get_user_management),
+    _=RequirePermission([PermissionEnum.READ_USERS]),
 ):
     try:
         users = await service.get_users(skip, limit, False)
@@ -27,6 +27,7 @@ async def get_deleted_users_endpoint(
     skip: int = Query(default=0),
     limit: int = Query(default=10),
     service: UserManagement = Depends(get_user_management),
+    _=RequirePermission([PermissionEnum.DELETE_USERS]),
 ):
     try:
         exists_users = await service.get_users(skip, limit, False)
@@ -41,6 +42,7 @@ async def get_deleted_users_endpoint(
 async def create_user_endpoint(
     payload: UserCreate,
     service: UserManagement = Depends(get_user_management),
+    _=RequirePermission([PermissionEnum.CREATE_USERS]),
 ):
     try:
         new_user = await service.create_user(payload)
@@ -53,6 +55,7 @@ async def create_user_endpoint(
 async def get_user_endpoint(
     username: str = Path(...),
     service: UserManagement = Depends(get_user_management),
+    _=RequirePermission([PermissionEnum.READ_USERS]),
 ):
     try:
         user = await service.get_user(username)
@@ -68,6 +71,7 @@ async def update_user_endpoint(
     payload: UserUpdate,
     username: str = Path(...),
     service: UserManagement = Depends(get_user_management),
+    _=RequirePermission([PermissionEnum.UPDATE_USERS]),
 ):
     try:
         updated_user = await service.update_user(username, payload)
@@ -80,6 +84,7 @@ async def update_user_endpoint(
 async def delete_hard_user_endpoint(
     username: str = Path(...),
     service: UserManagement = Depends(get_user_management),
+    _=RequirePermission([PermissionEnum.DELETE_USERS]),
 ):
     try:
         await service.delete_hard_user(username)
@@ -91,6 +96,7 @@ async def delete_hard_user_endpoint(
 async def delete_soft_user_endpoint(
     username: str = Path(...),
     service: UserManagement = Depends(get_user_management),
+    _=RequirePermission([PermissionEnum.DELETE_USERS]),
 ):
     try:
         await service.delete_soft_user(username)

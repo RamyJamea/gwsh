@@ -1,10 +1,10 @@
 from io import BytesIO
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from ..models import User
-from ..services import OrderService
-from ..helpers.schemas import OrderHistoryResponse
-from ..helpers.auth import get_current_user, get_order_service, get_current_admin
+from ...models import User
+from ...services import OrderService
+from ...helpers.schemas import OrderHistoryResponse
+from ...helpers.security import get_current_user, get_order_service, get_current_admin
 
 router = APIRouter(prefix="/history", tags=["order-history"])
 

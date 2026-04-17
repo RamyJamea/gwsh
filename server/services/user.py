@@ -3,7 +3,7 @@ from typing import Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..repositories import UserRepository, BranchRepository
 from ..helpers.schemas import UserCreate, UserUpdate
-from ..helpers.auth import hash_password
+from ..helpers.security import hash_password
 from ..helpers.exceptions import NotFoundException
 from ..models import UserModel
 

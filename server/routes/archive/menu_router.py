@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
-from ..models import User
-from ..services import MenuService
-from ..helpers.auth import get_current_user, get_current_admin, get_menu_service
-from ..helpers.schemas import (
+from ...models import User
+from ...services import MenuService
+from ...helpers.security import get_current_user, get_current_admin, get_menu_service
+from ...helpers.schemas import (
     MenuItemCreate,
     MenuItemUpdate,
     MenuItemResponse,

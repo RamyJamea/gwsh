@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, status, HTTPException
-from ..helpers.schemas import TableCreate, TableUpdate, TableRead
-from ..helpers.auth import get_table_service
-from ..helpers.auth import get_current_user, get_current_admin, get_current_cashier
-from ..services import TableService
-from ..models import User
+from ...helpers.schemas import TableCreate, TableUpdate, TableRead
+from ...helpers.security import get_table_service
+from ...helpers.security import get_current_user, get_current_admin, get_current_cashier
+from ...services import TableService
+from ...models import User
 
 router = APIRouter(prefix="/tables", tags=["tables"])
 

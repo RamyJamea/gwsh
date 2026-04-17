@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from ..services import BranchService
-from ..models import User
-from ..helpers.schemas import BranchCreate, BranchUpdate, BranchRead
-from ..helpers.auth import get_current_user, get_current_admin, get_branch_service
+from ...services import BranchService
+from ...models import User
+from ...helpers.schemas import BranchCreate, BranchUpdate, BranchRead
+from ...helpers.security import get_current_user, get_current_admin, get_branch_service
 
 router = APIRouter(prefix="/branches", tags=["branches"])
 
