@@ -7,18 +7,6 @@ from ..dependencies import get_user_management
 router = APIRouter(prefix="/management/users", tags=["Management"])
 
 
-@router.get("/{username}/", response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def get_user_endpoint(
-    username: str = Path(...),
-    service: UserManagement = Depends(get_user_management),
-):
-    try:
-        user = await service.get_user(username)
-        return UserResponse.model_validate(user)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-
 @router.get("/", response_model=list[UserResponse], status_code=status.HTTP_200_OK)
 async def get_users_endpoint(
     skip: int = Query(default=0),
@@ -28,6 +16,23 @@ async def get_users_endpoint(
     try:
         users = await service.get_users(skip, limit, False)
         return [UserResponse.model_validate(user) for user in users]
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get(
+    "/deleted/", response_model=list[UserResponse], status_code=status.HTTP_200_OK
+)
+async def get_deleted_users_endpoint(
+    skip: int = Query(default=0),
+    limit: int = Query(default=10),
+    service: UserManagement = Depends(get_user_management),
+):
+    try:
+        exists_users = await service.get_users(skip, limit, False)
+        all_users = await service.get_users(skip, limit, True)
+        deleted_users = [user for user in all_users if user not in exists_users]
+        return [UserResponse.model_validate(user) for user in deleted_users]
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -44,10 +49,20 @@ async def create_user_endpoint(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@router.get("/{username}/", response_model=UserResponse, status_code=status.HTTP_200_OK)
+async def get_user_endpoint(
+    username: str = Path(...),
+    service: UserManagement = Depends(get_user_management),
+):
+    try:
+        user = await service.get_user(username)
+        return UserResponse.model_validate(user)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
 @router.put(
-    "/{username}/",
-    response_model=UserResponse,
-    status_code=status.HTTP_202_ACCEPTED,
+    "/{username}/", response_model=UserResponse, status_code=status.HTTP_202_ACCEPTED
 )
 async def update_user_endpoint(
     payload: UserUpdate,
@@ -61,7 +76,18 @@ async def update_user_endpoint(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.delete("/soft/{username}/", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{username}/hard/", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_hard_user_endpoint(
+    username: str = Path(...),
+    service: UserManagement = Depends(get_user_management),
+):
+    try:
+        await service.delete_hard_user(username)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.delete("/{username}/soft/", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_soft_user_endpoint(
     username: str = Path(...),
     service: UserManagement = Depends(get_user_management),
@@ -71,12 +97,18 @@ async def delete_soft_user_endpoint(
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-@router.delete("/hard/{username}/", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_hard_user_endpoint(
+
+@router.get(
+    "/{username}/revive/",
+    response_model=UserResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def revive_user_endpoint(
     username: str = Path(...),
     service: UserManagement = Depends(get_user_management),
 ):
     try:
-        await service.delete_hard_user(username)
+        user_obj = await service.revive_user(username)
+        return UserResponse.model_validate(user_obj)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

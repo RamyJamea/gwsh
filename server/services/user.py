@@ -17,8 +17,10 @@ class UserManagement:
         self.user_repo = UserRepository(session)
         self.logger = structlog.get_logger(self.__class__.__name__)
 
-    async def _get_user(self, username: str) -> UserModel:
-        return await self.get_user(username)
+    async def _get_user(
+        self, username: str, include_deleted: bool = False
+    ) -> UserModel:
+        return await self.get_user(username, include_deleted)
 
     async def _branch_exists(self, branch_id: int):
         branch_obj = await self.branch_repo.get_one(branch_id)
@@ -64,7 +66,8 @@ class UserManagement:
         payload = data.model_dump(exclude_unset=True)
 
         if "password" in payload and payload["password"] is not None:
-            payload["hashed_password"] = hash_password(payload.pop("password"))
+            row_password = payload.pop("password").get_secret_value()
+            payload["hashed_password"] = hash_password(row_password)
 
         if "branch_id" in payload and payload["branch_id"] is not None:
             await self._branch_exists(payload["branch_id"])
@@ -81,7 +84,7 @@ class UserManagement:
             raise RuntimeError(f"user_update_failed -- {e}")
 
     async def delete_hard_user(self, username: str):
-        user_obj = await self._get_user(username)
+        user_obj = await self._get_user(username, True)
         try:
             await self.user_repo.delete_hard(user_obj)
             await self.session.commit()
@@ -102,12 +105,14 @@ class UserManagement:
             self.logger.error("user_soft_delete_failed", username=username)
             raise RuntimeError(f"user_soft_delete_failed -- {e}")
 
-    async def revive_user(self, username: str):
-        user_obj = await self._get_user(username)
+    async def revive_user(self, username: str) -> UserModel:
+        user_obj = await self._get_user(username, True)
         try:
             await self.user_repo.revive_one(user_obj)
             await self.session.commit()
+            await self.session.refresh(user_obj)
             self.logger.info("user_revive_success", username=username)
+            return user_obj
         except Exception as e:
             await self.session.rollback()
             self.logger.error("user_revive_failed", username=username)
