@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, insert, Select, func
 from ..models.base import Base
-from ..helpers.exceptions import DuplicateRecordException
+from ..helpers.exceptions import DuplicateRecordException, DatabaseConstraintException
 
 T = TypeVar("T", bound="Base")
 
@@ -48,7 +48,7 @@ class BaseRepository(Generic[T]):
 
     async def get_pagination(
         self, skip: int = 0, limit: int = 100, include_deleted: bool = False, **filters
-    ) -> Sequence[T] | None:
+    ) -> Sequence[T]:
         stmt = select(self.model).filter_by(**filters)
         stmt = self._apply_soft_delete_filter(stmt, include_deleted)
         stmt = stmt.offset(skip).limit(limit)
@@ -99,7 +99,7 @@ class BaseRepository(Generic[T]):
             await self.session.flush()
         except IntegrityError as e:
             await self.session.rollback()
-            raise DuplicateRecordException(f"Failed hard delete -- {e}")
+            DatabaseConstraintException(f"Cannot delete due to dependent records: {e}")
 
     async def delete_soft(self, db_obj: T) -> None:
         try:
@@ -112,7 +112,7 @@ class BaseRepository(Generic[T]):
                 )
         except IntegrityError as e:
             await self.session.rollback()
-            raise DuplicateRecordException(f"Failed soft delete -- {e}")
+            raise DatabaseConstraintException(f"Soft delete failed: {e}")
 
     async def revive_one(self, db_obj: T) -> None:
         try:
