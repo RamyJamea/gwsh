@@ -9,6 +9,18 @@ T = TypeVar("T", bound="Base")
 
 
 class BaseRepository(Generic[T]):
+    """**Summary**
+    1. get_one
+    2. get_many
+    3. get_paginated
+    4. create_one
+    5. create_bulk
+    6. update_one
+    7. delete_hard
+    8. delete_soft
+    9. revive_one
+    """
+
     def __init__(self, session: AsyncSession, model: Type[T]):
         self.session = session
         self.model = model
@@ -95,8 +107,9 @@ class BaseRepository(Generic[T]):
                 db_obj.deleted_at = func.now()
                 await self.session.flush()
             else:
-                self.session.delete(db_obj)
-                await self.session.flush()
+                raise ValueError(
+                    f"{self.model.__name__} does not support soft deletion."
+                )
         except IntegrityError as e:
             await self.session.rollback()
             raise DuplicateRecordException(f"Failed soft delete -- {e}")
