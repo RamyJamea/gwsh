@@ -80,14 +80,17 @@ class OrderHistoryService(BaseService):
         # ── Sheet 1: History Summary ─────────────────────────────────────
         summary_data = []
         for h in detailed_histories:
+            action_str = h.action.value if hasattr(h.action, "value") else str(h.action)
+            if action_str != "pay":
+                continue
+                
             summary_data.append(
                 {
-                    "History ID": h.id,
+                    # "History ID": h.id,
                     "Timestamp": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
-                    "Action": (
-                        h.action.value if hasattr(h.action, "value") else str(h.action)
-                    ),
+                    "Action": action_str,
                     "Cashier": h.cashier.username if h.cashier else "N/A",
+                    "Payment Method": h.order.payment_method.value if h.order and hasattr(h.order.payment_method, "value") else str(getattr(h.order, "payment_method", "N/A")),
                     "Total Amount": float(h.total_amount_at_time or 0),
                 }
             )
@@ -97,7 +100,7 @@ class OrderHistoryService(BaseService):
         items_data = []
         for h in detailed_histories:
             hist_meta = {
-                "History ID": h.id,
+                # "History ID": h.id,
                 "Timestamp": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                 "Action": (
                     h.action.value if hasattr(h.action, "value") else str(h.action)
@@ -233,17 +236,20 @@ class OrderHistoryService(BaseService):
         # ── Sheet 2: History Summary (all snapshots with Order ID) ──
         summary_data = []
         for h in all_detailed_histories:
+            action_str = h.action.value if hasattr(h.action, "value") else str(h.action)
+            if action_str != "pay":
+                continue
+                
             summary_data.append(
                 {
                     "Order ID": h.order_id,
-                    "History ID": h.id,
+                    # "History ID": h.id,
                     "Timestamp (TRT)": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
-                    "Action": (
-                        h.action.value if hasattr(h.action, "value") else str(h.action)
-                    ),
+                    "Action": action_str,
                     "Cashier": (
                         h.cashier.username if getattr(h, "cashier", None) else "N/A"
                     ),
+                    "Payment Method": h.order.payment_method.value if h.order and hasattr(h.order.payment_method, "value") else str(getattr(h.order, "payment_method", "N/A")),
                     "Total Amount": float(h.total_amount_at_time or 0),
                 }
             )
@@ -254,7 +260,7 @@ class OrderHistoryService(BaseService):
         for h in all_detailed_histories:
             hist_meta = {
                 "Order ID": h.order_id,
-                "History ID": h.id,
+                # "History ID": h.id,
                 "Timestamp (TRT)": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                 "Action": (
                     h.action.value if hasattr(h.action, "value") else str(h.action)
