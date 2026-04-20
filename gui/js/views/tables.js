@@ -17,7 +17,7 @@ async function renderTables(el) {
     } else {
       html($('#tables-grid'), `<div class="table-grid">${tables.map(t => `
         <div class="table-card ${t.is_available ? 'available' : 'occupied'}" data-table-id="${t.id}">
-          <div class="table-number">T${t.id}</div>
+          <div class="table-number" style="font-size: 1.5rem; font-weight: 700;">Table ${t.table_number || t.id}</div>
           <div class="table-chairs">${t.num_chairs} chairs</div>
           <span class="badge ${t.is_available ? 'badge-success' : 'badge-danger'}">${t.is_available ? 'Available' : 'Occupied'}</span>
         </div>
@@ -39,7 +39,7 @@ async function renderTables(el) {
 function showTableActions(tableId) {
   const t = state.tables.find(x => x.id === tableId);
   if (!t) return;
-  showModal(`Table T${tableId}`, `
+  showModal(`Manage Table ${t.table_number || t.id}`, `
     <div style="text-align:center;margin-bottom:16px;">
       <div class="table-number" style="font-size:2rem;">${t.num_chairs} chairs</div>
       <span class="badge ${t.is_available ? 'badge-success' : 'badge-danger'}">${t.is_available ? 'Available' : 'Occupied'}</span>
@@ -52,7 +52,7 @@ function showTableActions(tableId) {
     $('#table-delete').addEventListener('click', async () => {
       const confirmed = await confirmAction(
         'Delete Table',
-        `Delete Table T${tableId}? This action is permanent.`,
+        `Delete Table ${t.table_number || t.id}? This action is permanent.`,
         { danger: true }
       );
       if (!confirmed) return;

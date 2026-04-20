@@ -177,8 +177,8 @@ async function setupPOSFloor(bid) {
         }
 
         return `
-          <div class="table-card ${statusClass}" data-tid="${t.id}" style="cursor:pointer;">
-            <div class="table-number">T${t.id}</div>
+          <div class="table-card ${statusClass}" data-tid="${t.id}" data-tnum="${t.table_number || t.id}" style="cursor:pointer;">
+            <div class="table-number" style="font-size: 1.5rem; font-weight: 700;">Table ${t.table_number || t.id}</div>
             <div class="table-chairs">${t.num_chairs} chairs</div>
             ${statusBadge}
             ${footerHtml}
@@ -195,6 +195,7 @@ async function setupPOSFloor(bid) {
     floorGrid.querySelectorAll('.table-card').forEach(card => {
       card.addEventListener('click', () => {
         const tid = parseInt(card.dataset.tid);
+        const tnum = parseInt(card.dataset.tnum);
         const order = tableOrderMap[tid];
 
         if (order) {
@@ -203,6 +204,7 @@ async function setupPOSFloor(bid) {
         } else {
           // Available table → start new order (existing behavior)
           state.cartTable = tid;
+          state.cartTableNum = tnum;
           showPOSMenuView();
         }
       });
@@ -227,7 +229,7 @@ function showPOSMenuView() {
   show($('#pos-menu-view'));
   const labelEl = $('#cart-table-label');
   if (labelEl) {
-    labelEl.textContent = state.cartTable ? `Table T${state.cartTable}` : 'Walk-in / Takeaway';
+    labelEl.textContent = state.cartTable ? `Table ${state.cartTableNum || state.cartTable}` : 'Walk-in / Takeaway';
   }
   updateHoldButton();
 }

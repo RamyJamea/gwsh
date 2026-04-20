@@ -25,8 +25,14 @@ async function renderDashboard(el) {
         state.selectedBranch ? api.get(`/tables/branch/${state.selectedBranch}/available`).catch(() => []) : Promise.resolve([]),
       ]);
 
+      const isToday = (dateString) => {
+        if (!dateString) return false;
+        return new Date(dateString).toDateString() === new Date().toDateString();
+      };
+      const todaysOrders = orders.filter(o => isToday(o.created_at));
+
       $('#dash-branches').textContent = branches.length;
-      $('#dash-orders').textContent = orders.length;
+      $('#dash-orders').textContent = todaysOrders.length;
       $('#dash-menu').textContent = menuItems.length;
 
       try {
@@ -35,11 +41,15 @@ async function renderDashboard(el) {
       } catch { $('#dash-users').textContent = '—'; }
 
       // ── NEW: Calculate Total Revenue (sum of all paid orders) ──
-      const revenue = orders
+      const todaysRevenue = todaysOrders
+        .filter(o => o.action === 'pay')
+        .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+      
+      const branchTotalRevenue = orders
         .filter(o => o.action === 'pay')
         .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
 
-      $('#dash-revenue').textContent = formatMoney(revenue);
+      $('#dash-revenue').innerHTML = `${formatMoney(todaysRevenue)} <span style="display:block; font-size:1rem; color:var(--text-muted); font-weight:normal; margin-top:4px;">Total Branch: ${formatMoney(branchTotalRevenue)}</span>`;
       if (state.selectedBranch) {
         $('#dash-available-tables').textContent = availableTables.length;
       } else {
@@ -81,19 +91,24 @@ async function renderDashboard(el) {
         bid ? api.get(`/orders/?branch_id=${bid}`) : Promise.resolve([]),
         bid ? api.get(`/tables/branch/${bid}/available`).catch(() => []) : Promise.resolve([])
       ]);
+      const isToday = (dateString) => {
+        if (!dateString) return false;
+        return new Date(dateString).toDateString() === new Date().toDateString();
+      };
+      const todaysOrders = orders.filter(o => isToday(o.created_at));
       
-      $('#dash-cashier-orders').textContent = orders.length;
+      $('#dash-cashier-orders').textContent = todaysOrders.length;
 
-      const revenue = orders
+      const revenue = todaysOrders
         .filter(o => o.action === 'pay')
         .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
       $('#dash-cashier-revenue').textContent = formatMoney(revenue);
       
       $('#dash-cashier-tables').textContent = availableTables.length;
       
-      if (orders.length) {
+      if (todaysOrders.length) {
         // Show a more generous list since it's the only thing on the page
-        html($('#dash-recent'), orders.slice(0, 15).map(o =>
+        html($('#dash-recent'), todaysOrders.slice(0, 15).map(o =>
           `<div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);font-size:0.9rem;">
             <span style="font-weight:600;">Order #${o.id}</span>
             <span class="badge badge-${actionBadge(o.action)}">${o.action}</span>

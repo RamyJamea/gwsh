@@ -26,6 +26,7 @@ class BranchRead(BranchBase):
 class TableBase(BaseModel):
     num_chairs: int
     is_available: bool = True
+    table_number: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -28,7 +28,14 @@ class TableService(BaseService):
     def create(self, data: TableCreate):
         if not self.branch_repo.get_by_id(data.branch_id):
             raise ValueError("Branch not found")
-        obj = self.repo.create(data.model_dump())
+        
+        tables = self.repo.get_tables_by_branch(data.branch_id, limit=9999)
+        max_num = max([t.table_number or 0 for t in tables]) if tables else 0
+        
+        dump = data.model_dump()
+        dump["table_number"] = max_num + 1
+
+        obj = self.repo.create(dump)
         self.session.commit()
         return obj
 
