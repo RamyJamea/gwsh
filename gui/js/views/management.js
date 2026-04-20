@@ -116,12 +116,14 @@ async function renderUsersTab(el) {
     const users = await api.get('/users/');
     state.users = users;
 
+    const activeUsers = users.filter(u => u.is_active !== false);
+
     html($('#users-list-tab'), `
       <div class="data-table-wrapper">
         <table class="data-table">
           <thead><tr><th>Username</th><th>Role</th><th>Branch</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
-            ${users.map(u => `<tr>
+            ${activeUsers.map(u => `<tr>
               <td><strong>${u.username}</strong></td>
               <td><span class="badge badge-info">${u.role}</span></td>
               <td>${u.branch_id}</td>
