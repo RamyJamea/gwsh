@@ -443,18 +443,18 @@ function showSizeSelectionModal(productId) {
   let sizesHtml = mis.map(mi => {
     const extrasCount = mi.menu_items_extras ? mi.menu_items_extras.length : 0;
     return `
-      <button class="btn btn-outline size-select-btn w-full" 
+      <button class="btn btn-outline size-select-btn" 
               data-mi-id="${mi.id}"
-              style="justify-content:space-between; margin-bottom:8px; padding:16px; text-align:left;">
-        <span style="font-weight:600;">${mi._sizeName}</span>
-        <span class="tabular-nums">${formatMoney(mi.price)}</span>
-        ${extrasCount ? `<span class="text-sm text-muted ml-auto">+${extrasCount} extras</span>` : ''}
+              style="flex: 1; min-width: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px;">
+        <span style="font-weight:600; font-size: 1.1rem;">${mi._sizeName}</span>
+        <span class="tabular-nums" style="font-weight:700; color:var(--brand-primary, #00e5ff);">${formatMoney(mi.price)}</span>
+        ${extrasCount ? `<span class="text-sm text-muted">+${extrasCount} extras</span>` : ''}
       </button>
     `;
   }).join('');
 
   showModal(`Select size for ${mis[0]._productName}`, `
-    <div style="min-height:50vh; max-height:70vh; overflow-y:auto; padding:8px;">
+    <div style="display:flex; flex-wrap:wrap; gap:12px; max-height:70vh; overflow-y:auto; padding:16px;">
       ${sizesHtml}
     </div>
   `);
@@ -566,12 +566,20 @@ async function handleCheckout() {
   const totalWithExtras = state.cart.reduce((s, i) => s + getItemTotal(i), 0);
 
   showModal('Checkout', `
-    <div class="form-group">
-      <label>Payment Method</label>
-      <select id="checkout-payment">
-        <option value="cash">Cash</option>
-        <option value="card">Card</option>
-      </select>
+    <div class="form-group" style="margin-bottom: 24px;">
+      <label style="font-weight:600; margin-bottom: 12px; display: block;">Payment Method</label>
+      <div style="display: flex; gap: 12px;" id="payment-options">
+        <label class="payment-option selected" style="flex: 1; border: 2px solid var(--brand-primary, #00e5ff); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s;">
+            <input type="radio" name="checkout-payment" value="cash" checked style="display:none;">
+            <i data-lucide="banknote" style="width:28px;height:28px;margin-bottom:8px;display:inline-block;color:var(--brand-primary, #00e5ff);"></i>
+            <div style="font-weight:600;">Cash</div>
+        </label>
+        <label class="payment-option" style="flex: 1; border: 2px solid var(--border-color, #334155); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: transparent;">
+            <input type="radio" name="checkout-payment" value="card" style="display:none;">
+            <i data-lucide="credit-card" style="width:28px;height:28px;margin-bottom:8px;display:inline-block;color:var(--text-muted, #94a3b8);"></i>
+            <div style="font-weight:600;color:var(--text-muted, #94a3b8);">Card</div>
+        </label>
+      </div>
     </div>
 
     <div class="cart-summary-row total" style="display:flex;justify-content:space-between;font-size:1.1rem;font-weight:700;margin-top:12px;padding:12px;background:#f8f9fa;border-radius:8px;">
@@ -585,9 +593,29 @@ async function handleCheckout() {
     </div>
   `);
 
+  setTimeout(() => {
+    lucide.createIcons();
+    document.querySelectorAll('.payment-option').forEach(opt => {
+      opt.addEventListener('click', function() {
+        document.querySelectorAll('.payment-option').forEach(el => {
+          el.style.borderColor = 'var(--border-color, #334155)';
+          const icon = el.querySelector('svg') || el.querySelector('i');
+          if (icon) icon.style.color = 'var(--text-muted, #94a3b8)';
+          el.querySelector('div').style.color = 'var(--text-muted, #94a3b8)';
+          el.classList.remove('selected');
+        });
+        this.style.borderColor = 'var(--brand-primary, #00e5ff)';
+        const icon = this.querySelector('svg') || this.querySelector('i');
+        if (icon) icon.style.color = 'var(--brand-primary, #00e5ff)';
+        this.querySelector('div').style.color = 'inherit';
+        this.classList.add('selected');
+      });
+    });
+  }, 100);
+
   $('#cancel-checkout').addEventListener('click', closeModal);
   $('#confirm-checkout').addEventListener('click', async () => {
-    const payment = $('#checkout-payment').value;
+    const payment = document.querySelector('input[name="checkout-payment"]:checked').value;
     try {
       const orderData = {
         cashier_id: state.user.id,
@@ -689,12 +717,20 @@ function updateHoldButton() {
 async function handleHeldCheckout(orderId) {
   showModal(`Checkout Order #${orderId}`, `
     <div style="padding:24px;">
-      <div class="form-group">
-        <label style="font-weight:600;">Payment Method</label>
-        <select id="held-checkout-payment" style="width:100%; padding:12px; border-radius:8px; font-size:1.1rem;">
-          <option value="cash">Cash</option>
-          <option value="card">Card</option>
-        </select>
+      <div class="form-group" style="margin-bottom: 24px;">
+        <label style="font-weight:600; margin-bottom: 12px; display: block;">Payment Method</label>
+        <div style="display: flex; gap: 12px;" id="held-payment-options">
+          <label class="held-payment-option selected" style="flex: 1; border: 2px solid var(--brand-primary, #00e5ff); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s;">
+              <input type="radio" name="held-checkout-payment" value="cash" checked style="display:none;">
+              <i data-lucide="banknote" style="width:28px;height:28px;margin-bottom:8px;display:inline-block;color:var(--brand-primary, #00e5ff);"></i>
+              <div style="font-weight:600;">Cash</div>
+          </label>
+          <label class="held-payment-option" style="flex: 1; border: 2px solid var(--border-color, #334155); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: transparent;">
+              <input type="radio" name="held-checkout-payment" value="card" style="display:none;">
+              <i data-lucide="credit-card" style="width:28px;height:28px;margin-bottom:8px;display:inline-block;color:var(--text-muted, #94a3b8);"></i>
+              <div style="font-weight:600;color:var(--text-muted, #94a3b8);">Card</div>
+          </label>
+        </div>
       </div>
 
       <div style="margin-top:24px; padding:16px; background:#f0fdf4; border-radius:12px; text-align:center;">
@@ -714,9 +750,29 @@ async function handleHeldCheckout(orderId) {
     $('#checkout-total').textContent = formatMoney(order.total_amount);
   } catch { }
 
+  setTimeout(() => {
+    lucide.createIcons();
+    document.querySelectorAll('.held-payment-option').forEach(opt => {
+      opt.addEventListener('click', function() {
+        document.querySelectorAll('.held-payment-option').forEach(el => {
+          el.style.borderColor = 'var(--border-color, #334155)';
+          const icon = el.querySelector('svg') || el.querySelector('i');
+          if (icon) icon.style.color = 'var(--text-muted, #94a3b8)';
+          el.querySelector('div').style.color = 'var(--text-muted, #94a3b8)';
+          el.classList.remove('selected');
+        });
+        this.style.borderColor = 'var(--brand-primary, #00e5ff)';
+        const icon = this.querySelector('svg') || this.querySelector('i');
+        if (icon) icon.style.color = 'var(--brand-primary, #00e5ff)';
+        this.querySelector('div').style.color = 'inherit';
+        this.classList.add('selected');
+      });
+    });
+  }, 100);
+
   $('#cancel-held-checkout').addEventListener('click', closeModal);
   $('#confirm-held-checkout').addEventListener('click', async () => {
-    const payment = $('#held-checkout-payment').value;
+    const payment = document.querySelector('input[name="held-checkout-payment"]:checked').value;
     try {
       await api.post(`/orders/${orderId}/checkout`, { payment_method: payment });
 
