@@ -25,9 +25,12 @@ async function renderDashboard(el) {
         state.selectedBranch ? api.get(`/tables/branch/${state.selectedBranch}/available`).catch(() => []) : Promise.resolve([]),
       ]);
 
+      const todayTRT = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
       const isToday = (dateString) => {
         if (!dateString) return false;
-        return new Date(dateString).toDateString() === new Date().toDateString();
+        let dStr = String(dateString);
+        if (!dStr.endsWith('Z') && !dStr.includes('+')) dStr += 'Z';
+        return new Date(dStr).toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }) === todayTRT;
       };
       const todaysOrders = orders.filter(o => isToday(o.created_at));
 
@@ -91,9 +94,12 @@ async function renderDashboard(el) {
         bid ? api.get(`/orders/?branch_id=${bid}`) : Promise.resolve([]),
         bid ? api.get(`/tables/branch/${bid}/available`).catch(() => []) : Promise.resolve([])
       ]);
+      const todayTRT = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
       const isToday = (dateString) => {
         if (!dateString) return false;
-        return new Date(dateString).toDateString() === new Date().toDateString();
+        let dStr = String(dateString);
+        if (!dStr.endsWith('Z') && !dStr.includes('+')) dStr += 'Z';
+        return new Date(dStr).toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }) === todayTRT;
       };
       const todaysOrders = orders.filter(o => isToday(o.created_at));
       

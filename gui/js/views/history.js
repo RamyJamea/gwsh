@@ -32,7 +32,21 @@ async function renderHistory(el) {
     let orders = await api.get(`/orders/?branch_id=${bid}&limit=200`);
 
     // Filter completed orders
-    state.completedOrders = orders.filter(o => o.action === 'pay' || o.action === 'cancel');
+    let completed = orders.filter(o => o.action === 'pay' || o.action === 'cancel');
+
+    if (!isAdmin()) {
+      const getTRTDateStr = (dateVal) => {
+        return new Date(dateVal).toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
+      };
+      const todayTRT = getTRTDateStr(new Date());
+      completed = completed.filter(o => {
+        let dateStr = String(o.created_at);
+        if (!dateStr.endsWith('Z') && !dateStr.includes('+')) dateStr += 'Z';
+        return getTRTDateStr(new Date(dateStr)) === todayTRT;
+      });
+    }
+
+    state.completedOrders = completed;
 
     // ── ENRICH WITH CASHIER NAME (so the table shows everything) ──
     if (state.completedOrders.length) {
