@@ -191,16 +191,50 @@ async function setupPOSFloor(bid) {
 
     html(floorGrid, h);
 
-    // ALL tables are now clickable
     floorGrid.querySelectorAll('.table-card').forEach(card => {
       card.addEventListener('click', () => {
         const tid = parseInt(card.dataset.tid);
         const tnum = parseInt(card.dataset.tnum);
+        const t = tables.find(tbl => tbl.id === tid) || { is_available: true };
         const order = tableOrderMap[tid];
+        const isOccupied = !t.is_available || !!order;
 
-        if (order) {
-          // Occupied table → open existing order (view + add/remove/checkout/cancel)
-          showOrderDetail(order.id);
+        if (isOccupied) {
+          if (isAdmin()) {
+            showModal(order ? `Table ${tnum || tid} - Order #${order?.id}` : `Table ${tnum || tid}`, `
+              <div style="display:flex; flex-direction:column; gap:16px; padding:16px;">
+                ${order ? `<button class="btn btn-primary btn-lg w-full" id="floor-manage-order">Manage Order</button>` : ''}
+                <button class="btn btn-danger btn-lg w-full" id="floor-cancel-order">${order ? 'Cancel Order & Free Table' : 'Free Table'}</button>
+              </div>
+            `);
+            setTimeout(() => {
+              if (order) {
+                $('#floor-manage-order')?.addEventListener('click', () => {
+                  closeModal();
+                  showOrderDetail(order.id);
+                });
+              }
+              $('#floor-cancel-order')?.addEventListener('click', async () => {
+                closeModal();
+                const confirmed = await confirmAction('Confirm', order ? `Cancel Order #${order.id} and free this table?` : `Free Table ${tnum || tid}?`, { danger: true });
+                if (!confirmed) return;
+                try {
+                  if (order) await api.post(`/orders/${order.id}/cancel`, {});
+                  await api.patch(`/tables/${tid}`, { is_available: true });
+                  toast('Success', 'success');
+                  setupPOSFloor(bid);
+                } catch (err) {
+                  toast(err.message, 'error');
+                }
+              });
+            }, 10);
+          } else {
+            if (order) {
+              showOrderDetail(order.id);
+            } else {
+              toast('Table is occupied but has no active order.', 'warning');
+            }
+          }
         } else {
           // Available table → start new order (existing behavior)
           state.cartTable = tid;
@@ -248,7 +282,7 @@ async function enrichMenuItems() {
   try {
     if (!Object.keys(_productCache).length) {
       const prods = await api.get('/products/');
-      prods.forEach(p => _productCache[p.id] = { name: p.name, image_url: p.image_url });
+      prods.forEach(p => _productCache[p.id] = { name: p.name, image_url: p.image_url, category_id: p.category_id });
     }
   } catch { }
   try {
@@ -258,9 +292,10 @@ async function enrichMenuItems() {
     }
   } catch { }
   state.menuItems.forEach(mi => {
-    const pData = _productCache[mi.product_id] || { name: `Product ${mi.product_id}`, image_url: null };
+    const pData = _productCache[mi.product_id] || { name: `Product ${mi.product_id}`, image_url: null, category_id: null };
     mi._productName = pData.name;
     mi._productImage = pData.image_url;
+    mi._categoryId = pData.category_id;
     mi._sizeName = _sizeCache[mi.size_id] || `Size ${mi.size_id}`;
   });
 }

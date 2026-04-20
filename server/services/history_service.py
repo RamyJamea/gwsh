@@ -303,11 +303,23 @@ class OrderHistoryService(BaseService):
 
         items_df = pd.DataFrame(items_data)
 
+        # ── Sheet 4: Daily Revenue ──
+        daily_data = {}
+        for row in summary_data:
+            date_str = row["Timestamp (TRT)"].split(" ")[0] if row["Timestamp (TRT)"] != "N/A" else "N/A"
+            if date_str != "N/A":
+                daily_data[date_str] = daily_data.get(date_str, 0.0) + row["Total Amount"]
+        
+        daily_revenue_list = [{"Date": d, "Total Revenue": float(amt)} for d, amt in daily_data.items()]
+        daily_revenue_list.sort(key=lambda x: x["Date"], reverse=True)
+        daily_df = pd.DataFrame(daily_revenue_list)
+
         # ── Generate Excel file in memory ─────────────────────────────────
         output = BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             orders_df.to_excel(writer, sheet_name="Orders Overview", index=False)
             summary_df.to_excel(writer, sheet_name="History Summary", index=False)
+            daily_df.to_excel(writer, sheet_name="Daily Revenue", index=False)
             items_df.to_excel(writer, sheet_name="Detailed Items & Extras", index=False)
 
             # Auto-adjust column widths for readability

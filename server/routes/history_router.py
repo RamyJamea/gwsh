@@ -93,3 +93,17 @@ def get_history_detail(
     except ValueError as exc:
         status_code = 404 if "not found" in str(exc).lower() else 400
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
+@router.delete("/orders/{order_id}")
+def delete_order_history(
+    order_id: int,
+    current_admin: User = Depends(get_current_admin),
+    order_service: OrderService = Depends(get_order_service),
+):
+    """Permanently delete an order and its full history (admin only)."""
+    try:
+        return order_service.delete_order(order_id)
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc

@@ -144,6 +144,9 @@ function renderHistoryTable(el) {
                 ${isAdmin() ? `
                 <button class="btn btn-sm btn-success" data-export-order="${o.id}" title="Download detailed Excel">
                   <i data-lucide="download" style="width:16px;height:16px;margin-right:4px;"></i> Excel
+                </button>
+                <button class="btn btn-sm btn-danger" data-delete-order="${o.id}" title="Delete Order">
+                  <i data-lucide="trash-2" style="width:16px;height:16px;margin-right:4px;"></i> Delete
                 </button>` : ''}
               </td>
             </tr>
@@ -191,6 +194,22 @@ function renderHistoryTable(el) {
     btn.addEventListener('click', () => {
       const orderId = parseInt(btn.dataset.exportOrder);
       api.downloadExcel(`/history/orders/${orderId}/export-excel`, `order_${orderId}_detailed_history.xlsx`);
+    });
+  });
+
+  // Delete Order
+  listEl.querySelectorAll('[data-delete-order]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const orderId = parseInt(btn.dataset.deleteOrder);
+      const confirmed = await confirmAction('Delete Order', `Permanently delete Order #${orderId} and its full history?`, { danger: true });
+      if (!confirmed) return;
+      try {
+        await api.del(`/history/orders/${orderId}`);
+        toast(`Order #${orderId} deleted successfully`, 'success');
+        renderHistory(el);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
     });
   });
 }

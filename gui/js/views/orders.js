@@ -40,7 +40,7 @@ async function renderOrders(el) {
                 <button class="btn btn-sm btn-outline" data-view-order="${o.id}">View</button>
                 <button class="btn btn-sm btn-primary" data-add-items="${o.id}">+ Add</button>
                 <button class="btn btn-sm btn-success" data-checkout-order="${o.id}">Checkout</button>
-                <button class="btn btn-sm btn-danger" data-cancel-order="${o.id}">Cancel</button>
+                ${isAdmin() ? `<button class="btn btn-sm btn-danger" data-cancel-order="${o.id}">Cancel</button>` : ''}
               </td>
             </tr>`).join('')}
           </tbody>
@@ -107,10 +107,17 @@ async function showOrderDetail(orderId, defaultTab = null) {
           <h3 class="mb-1" style="font-size: 1.5rem; color: var(--text-main);">Order #${orderId}</h3>
           <span class="text-sm text-muted">${isActive ? 'Active Order' : 'Completed Order'}</span>
         </div>
-        ${isAdmin() ? `
-        <button id="drawer-export-excel" class="btn btn-sm btn-outline">
-          <i data-lucide="download" style="width:16px;height:16px;margin-right:6px;"></i> Export Excel
-        </button>` : ''}
+        <div style="display:flex; gap:8px; align-items:center;">
+          ${isAdmin() && isActive ? `
+          <button id="drawer-header-cancel-order" class="btn btn-sm btn-danger">
+            Cancel Order
+          </button>
+          ` : ''}
+          ${isAdmin() ? `
+          <button id="drawer-export-excel" class="btn btn-sm btn-outline">
+            <i data-lucide="download" style="width:16px;height:16px;margin-right:6px;"></i> Export Excel
+          </button>` : ''}
+        </div>
       </div>
 
       <div class="tabs" id="order-tabs" style="margin-bottom: 1.5rem;">
@@ -180,12 +187,20 @@ async function showOrderDetail(orderId, defaultTab = null) {
       <div class="tab-content" id="tab-checkout">
         <div style="background:#f8f9fa; padding:20px; border-radius:12px;">
           <h3 style="margin-bottom:16px;">Checkout Order</h3>
-          <div class="form-group">
-            <label style="font-weight:600;">Payment Method</label>
-            <select id="drawer-checkout-payment" style="width:100%; padding:12px; border-radius:8px; font-size:1.1rem;">
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-            </select>
+          <div class="form-group" style="margin-bottom: 24px;">
+            <label style="font-weight:600; margin-bottom: 12px; display: block;">Payment Method</label>
+            <div style="display: flex; gap: 12px;" id="drawer-payment-options">
+              <label class="drawer-payment-option selected" style="flex: 1; border: 2px solid var(--brand-primary, #00e5ff); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s;">
+                  <input type="radio" name="drawer-checkout-payment" value="cash" checked style="display:none;">
+                  <i data-lucide="banknote" style="width:28px;height:28px;margin-bottom:8px;display:inline-block;color:var(--brand-primary, #00e5ff);"></i>
+                  <div style="font-weight:600;">Cash</div>
+              </label>
+              <label class="drawer-payment-option" style="flex: 1; border: 2px solid var(--border-color, #334155); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: transparent;">
+                  <input type="radio" name="drawer-checkout-payment" value="card" style="display:none;">
+                  <i data-lucide="credit-card" style="width:28px;height:28px;margin-bottom:8px;display:inline-block;color:var(--text-muted, #94a3b8);"></i>
+                  <div style="font-weight:600;color:var(--text-muted, #94a3b8);">Card</div>
+              </label>
+            </div>
           </div>
           <div style="margin:24px 0; padding:16px; background:#fff; border-radius:12px; text-align:center; border: 1px solid var(--border);">
             <div class="text-muted">Total to pay</div>
@@ -193,9 +208,11 @@ async function showOrderDetail(orderId, defaultTab = null) {
           </div>
           <button class="btn btn-success btn-lg w-full" id="drawer-confirm-checkout" style="margin-bottom: 24px;"><i data-lucide="check-circle" style="width:20px;height:20px;margin-right:8px;"></i> Confirm & Complete Order</button>
           
+          ${isAdmin() ? `
           <div style="border-top: 1px dashed var(--border); padding-top: 16px;">
              <button class="btn btn-outline btn-danger w-full" id="drawer-cancel-order">Cancel Order</button>
           </div>
+          ` : ''}
         </div>
       </div>
       ` : ''}
@@ -222,23 +239,28 @@ async function showOrderDetail(orderId, defaultTab = null) {
         const aggregated = [];
         itemsToShow.forEach(item => {
           const extras = item.order_item_extras || item.extras || [];
+          
+          let productName = item.menu_item_name;
+          if (!productName) {
+            const mi = state.menuItems?.find(m => m.id === item.menu_item_id);
+            productName = mi ? (mi._productName || `Item #${mi.id}`) : `Item #${item.menu_item_id || item.id}`;
+          }
+
           const existing = aggregated.find(agg => {
-            if (agg.menu_item_id !== item.menu_item_id) return false;
+            const idMatch = item.menu_item_id != null && agg.menu_item_id === item.menu_item_id;
+            const nameMatch = agg.productName === productName;
+            if (!idMatch && !nameMatch) return false;
+
             if (agg.extras.length !== extras.length) return false;
-            const e1 = agg.extras.map(e => e.menu_item_extra_id || e.id).sort().join(',');
-            const e2 = extras.map(e => e.menu_item_extra_id || e.id).sort().join(',');
+            const e1 = agg.extras.map(e => e.menu_item_extra_id || e.id || e.extra_name || e.name).sort().join(',');
+            const e2 = extras.map(e => e.menu_item_extra_id || e.id || e.extra_name || e.name).sort().join(',');
             return e1 === e2;
           });
 
           if (existing) {
-            existing.quantity += item.quantity;
-            existing.total_price += (item.quantity * (item.price_at_time || item.price || 0));
+            existing.quantity += item.quantity || 1;
+            existing.total_price += ((item.quantity || 1) * (item.price_at_time || item.price || 0));
           } else {
-            let productName = item.menu_item_name;
-            if (!productName) {
-              const mi = state.menuItems?.find(m => m.id === item.menu_item_id);
-              productName = mi ? (mi._productName || `Item #${mi.id}`) : `Item #${item.menu_item_id || item.id}`;
-            }
             aggregated.push({
               ...item,
               productName,
@@ -338,11 +360,46 @@ async function showOrderDetail(orderId, defaultTab = null) {
       api.downloadExcel(`/history/orders/${orderId}/export-excel`, `order_${orderId}_detailed_history.xlsx`);
     });
 
+    $('#drawer-header-cancel-order')?.addEventListener('click', async () => {
+      const confirmed = await confirmAction('Cancel Order', `Cancel Order #${orderId}?`, { danger: true });
+      if (!confirmed) return;
+      try {
+        await api.post(`/orders/${orderId}/cancel`, {});
+        await finalizeOrder(orderId);
+        closeDrawer();
+        toast('Order cancelled', 'warning');
+        if (state.currentRoute === 'orders') renderOrders($('#content'));
+        else if (state.currentRoute === 'pos') renderPOS($('#content'));
+      } catch(err) {
+        toast(err.message, 'error');
+      }
+    });
+
     if (canEdit) {
       loadDrawerAddItems(orderId);
 
+      // Add horizontal card selector click styling
+      setTimeout(() => {
+        document.querySelectorAll('.drawer-payment-option').forEach(opt => {
+          opt.addEventListener('click', function() {
+            document.querySelectorAll('.drawer-payment-option').forEach(el => {
+              el.style.borderColor = 'var(--border-color, #334155)';
+              const icon = el.querySelector('svg') || el.querySelector('i');
+              if (icon) icon.style.color = 'var(--text-muted, #94a3b8)';
+              el.querySelector('div').style.color = 'var(--text-muted, #94a3b8)';
+              el.classList.remove('selected');
+            });
+            this.style.borderColor = 'var(--brand-primary, #00e5ff)';
+            const icon = this.querySelector('svg') || this.querySelector('i');
+            if (icon) icon.style.color = 'var(--brand-primary, #00e5ff)';
+            this.querySelector('div').style.color = 'inherit';
+            this.classList.add('selected');
+          });
+        });
+      }, 50);
+
       $('#drawer-confirm-checkout')?.addEventListener('click', async () => {
-        const payment = $('#drawer-checkout-payment').value;
+        const payment = document.querySelector('input[name="drawer-checkout-payment"]:checked').value;
         try {
           await api.post(`/orders/${orderId}/checkout`, { payment_method: payment });
           await finalizeOrder(orderId);
@@ -416,6 +473,10 @@ async function loadDrawerAddItems(orderId) {
   const extrasView = document.getElementById('add-items-extras-view');
 
   try {
+    if (!state.categories || !state.categories.length) {
+      state.categories = await api.get('/categories/').catch(() => []);
+    }
+
     if (!state.menuItems?.length || !state.menuItems[0]?.menu_items_extras) {
       state.menuItems = await api.get(`/menu-items/branch/${bid}`);
       if (typeof enrichMenuItems === 'function') await enrichMenuItems();
@@ -435,18 +496,34 @@ async function loadDrawerAddItems(orderId) {
         grid.innerHTML = '<div class="empty-state"><p>No items found</p></div>';
         return;
       }
-      grid.innerHTML = items.map(mi => `
-        <div class="product-card" data-mi-id="${mi.id}">
-          <div class="product-img-placeholder">${(mi._productName || 'I')[0]}</div>
-          <div class="product-card-body">
-            <div class="product-name">${mi._productName || 'Item'}</div>
-            <div class="product-size">${mi._sizeName || ''}</div>
-            <div class="product-price">${formatMoney(mi.price)}</div>
-            ${mi.menu_items_extras && mi.menu_items_extras.length ?
-          `<div class="product-extras">+${mi.menu_items_extras.length} extras</div>` : ''}
+
+      const byCategory = {};
+      items.forEach(mi => {
+        const catId = mi._categoryId;
+        const catName = catId && state.categories ? (state.categories.find(c => c.id === catId)?.name || 'Uncategorized') : 'Uncategorized';
+        if (!byCategory[catName]) byCategory[catName] = [];
+        byCategory[catName].push(mi);
+      });
+
+      let htmlContent = '';
+      for (const [catName, catItems] of Object.entries(byCategory)) {
+        htmlContent += `<div style="grid-column: 1 / -1; margin-top: 12px; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px;">
+          <h4 style="color: var(--text-main); margin: 0;">${catName}</h4>
+        </div>`;
+        htmlContent += catItems.map(mi => `
+          <div class="product-card" data-mi-id="${mi.id}">
+            <div class="product-img-placeholder">${(mi._productName || 'I')[0]}</div>
+            <div class="product-card-body">
+              <div class="product-name">${mi._productName || 'Item'}</div>
+              <div class="product-size">${mi._sizeName || ''}</div>
+              <div class="product-price">${formatMoney(mi.price)}</div>
+              ${mi.menu_items_extras && mi.menu_items_extras.length ?
+            `<div class="product-extras">+${mi.menu_items_extras.length} extras</div>` : ''}
+            </div>
           </div>
-        </div>
-      `).join('');
+        `).join('');
+      }
+      grid.innerHTML = htmlContent;
 
       grid.querySelectorAll('.product-card').forEach(card => {
         card.addEventListener('click', async () => {

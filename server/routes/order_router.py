@@ -3,7 +3,7 @@ from typing import Annotated
 from ..core.enums import RoleEnum
 from ..models import User
 from ..services import OrderService
-from ..core.dependencies import get_current_cashier, get_current_user, get_order_service
+from ..core.dependencies import get_current_cashier, get_current_user, get_current_admin, get_order_service
 from ..core.schemas.order_schema import *
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -105,7 +105,7 @@ def checkout_order(
 def cancel_order(
     order_id: int,
     cancel_in: OrderCancel | None = None,
-    current_user: User = Depends(get_current_cashier),
+    current_user: User = Depends(get_current_admin),
     order_service: OrderService = Depends(get_order_service),
 ):
     try:

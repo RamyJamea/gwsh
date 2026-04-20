@@ -36,18 +36,48 @@ async function renderTables(el) {
   }
 }
 
-function showTableActions(tableId) {
+async function showTableActions(tableId) {
   const t = state.tables.find(x => x.id === tableId);
   if (!t) return;
+
+  let activeOrder = null;
+  if (!t.is_available) {
+    try {
+      const orders = await api.get(`/orders/?branch_id=${state.selectedBranch}`);
+      activeOrder = orders.find(o => o.table_id === tableId && ['create', 'update'].includes(o.action));
+    } catch(err) {
+      console.error(err);
+    }
+  }
+
   showModal(`Manage Table ${t.table_number || t.id}`, `
     <div style="text-align:center;margin-bottom:16px;">
       <div class="table-number" style="font-size:2rem;">${t.num_chairs} chairs</div>
       <span class="badge ${t.is_available ? 'badge-success' : 'badge-danger'}">${t.is_available ? 'Available' : 'Occupied'}</span>
+      ${activeOrder ? `<div style="margin-top:8px;font-weight:600;color:var(--text-main);">Active Order #${activeOrder.id}</div>` : ''}
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      ${isAdmin() ? `<button class="btn btn-danger" id="table-delete">Delete Table</button>` : ''}
+    <div style="display:flex;flex-direction:row;gap:8px;justify-content:center;width:100%;">
+      ${isAdmin() && !t.is_available ? `<button class="btn btn-warning" style="flex:1;" id="table-cancel-order">${activeOrder ? 'Cancel Order & Free Table' : 'Free Table'}</button>` : ''}
+      ${isAdmin() ? `<button class="btn btn-outline" style="flex:1; border-color:var(--danger);color:var(--danger);" id="table-delete">Delete Table</button>` : ''}
     </div>
   `);
+
+  if ($('#table-cancel-order')) {
+    $('#table-cancel-order').addEventListener('click', async () => {
+      const confirmed = await confirmAction('Confirm', activeOrder ? `Cancel Order #${activeOrder.id} and free table ${t.table_number || t.id}?` : `Free table ${t.table_number || t.id}?`, { danger: true });
+      if (!confirmed) return;
+      try {
+        if (activeOrder) await api.post(`/orders/${activeOrder.id}/cancel`, {});
+        await api.patch(`/tables/${tableId}`, { is_available: true });
+        closeModal();
+        toast('Table freed successfully', 'success');
+        renderTables($('#content'));
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+  }
+
   if ($('#table-delete')) {
     $('#table-delete').addEventListener('click', async () => {
       const confirmed = await confirmAction(

@@ -211,6 +211,15 @@ class OrderService(BaseService):
         self.session.commit()
         return order
 
+    def delete_order(self, order_id: int) -> dict:
+        order = self.repo.get_by_id(order_id)
+        if not order:
+            raise ValueError(f"Order {order_id} not found")
+        
+        self.session.delete(order)
+        self.session.commit()
+        return {"message": f"Successfully deleted order {order_id}."}
+
     def get_detail(self, order_id: int) -> Order:
         order = self.repo.get_order_with_details(order_id)
         if not order:
