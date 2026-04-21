@@ -11,13 +11,15 @@ from .routes import branch_router, table_router
 from .routes import category_router, product_router, size_router, extra_router
 from .routes import order_router, history_router, menu_router, upload_router
 
+from .services.backup_service import init_scheduler, shutdown_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=ENGINE)
     seed_admin_user()
+    init_scheduler()
     yield
-
+    shutdown_scheduler()
 
 app = FastAPI(
     title="Point of Sale API",
