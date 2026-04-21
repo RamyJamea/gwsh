@@ -85,8 +85,8 @@ def init_scheduler():
     hour = settings.BACKUP_TIME_HOUR
     minute = settings.BACKUP_TIME_MINUTE
     
-    # We use a CronTrigger to run every day at specified hour/minute
-    trigger = CronTrigger(hour=hour, minute=minute)
+    # We use a CronTrigger to run every Monday at the specified hour/minute
+    trigger = CronTrigger(day_of_week='mon', hour=hour, minute=minute)
     
     # Add the job to the scheduler
     scheduler.add_job(
@@ -97,7 +97,7 @@ def init_scheduler():
         replace_existing=True
     )
     
-    logger.info(f"Scheduled Daily Email Backup for {hour:02d}:{minute:02d} everyday.")
+    logger.info(f"Scheduled Weekly Email Backup for every Monday at {hour:02d}:{minute:02d}.")
     scheduler.start()
 
 def shutdown_scheduler():
