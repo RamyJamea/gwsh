@@ -122,7 +122,6 @@ async function showOrderDetail(orderId, defaultTab = null) {
 
       <div class="tabs" id="order-tabs" style="margin-bottom: 1.5rem;">
         <div class="tab-item active" data-tab="summary">Summary</div>
-        <div class="tab-item" data-tab="items">Items</div>
         ${canEdit ? `
         <div class="tab-item" data-tab="add-items" style="color:var(--brand-primary);">+ Add Items</div>
         <div class="tab-item" data-tab="checkout" style="color:var(--success);">Checkout</div>
@@ -216,92 +215,6 @@ async function showOrderDetail(orderId, defaultTab = null) {
         </div>
       </div>
       ` : ''}
-
-      <!-- ITEMS (full products + extras) -->
-      <div class="tab-content" id="tab-items">
-        ${(() => {
-        let itemsToShow = [];
-
-        if (canEdit) {
-          // For active orders, use the fresh order items instead of potentially stale history snapshot
-          itemsToShow = order.order_items || [];
-        } else {
-          // For completed orders, prefer the history snapshot since the data structure is permanently locked
-          const latestHistory = historyData.length ? historyData[historyData.length - 1] : null;
-          itemsToShow = latestHistory?.order_history_items || order.order_items || [];
-        }
-
-        if (!itemsToShow.length) {
-          return `<div class="empty-state"><p>No items in this order</p></div>`;
-        }
-
-        // Aggregate visually
-        const aggregated = [];
-        itemsToShow.forEach(item => {
-          const extras = item.order_item_extras || item.extras || [];
-          
-          let productName = item.menu_item_name;
-          if (!productName) {
-            const mi = state.menuItems?.find(m => m.id === item.menu_item_id);
-            productName = mi ? (mi._productName || `Item #${mi.id}`) : `Item #${item.menu_item_id || item.id}`;
-          }
-
-          const existing = aggregated.find(agg => {
-            const idMatch = item.menu_item_id != null && agg.menu_item_id === item.menu_item_id;
-            const nameMatch = agg.productName === productName;
-            if (!idMatch && !nameMatch) return false;
-
-            if (agg.extras.length !== extras.length) return false;
-            const e1 = agg.extras.map(e => e.menu_item_extra_id || e.id || e.extra_name || e.name).sort().join(',');
-            const e2 = extras.map(e => e.menu_item_extra_id || e.id || e.extra_name || e.name).sort().join(',');
-            return e1 === e2;
-          });
-
-          if (existing) {
-            existing.quantity += item.quantity || 1;
-            existing.total_price += ((item.quantity || 1) * (item.price_at_time || item.price || 0));
-          } else {
-            aggregated.push({
-              ...item,
-              productName,
-              extras,
-              quantity: item.quantity || 1,
-              total_price: ((item.quantity || 1) * (item.price_at_time || item.price || 0))
-            });
-          }
-        });
-
-        return `
-            <div style="max-height: 70vh; overflow-y: auto; padding-right: 8px;">
-              <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem;">
-                ${aggregated.map(agg => `
-                  <li style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
-                    <div style="flex: 1;">
-                      <div style="display: flex; align-items: baseline; gap: 8px;">
-                        <span style="font-weight: 600; color: var(--text-main); font-size: 1.05rem;">${agg.productName}</span>
-                      </div>
-                      ${agg.extras.length ? `
-                        <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">
-                          ${agg.extras.map(e => `
-                            <span style="background: var(--bg-main); color: var(--text-muted); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; border: 1px solid var(--border);">
-                              + ${e.extra_name || e.name || `Extra #${e.menu_item_extra_id || e.id}`} ${e.quantity > 1 ? `(×${e.quantity})` : ''}
-                            </span>
-                          `).join('')}
-                        </div>
-                      ` : ''}
-                    </div>
-                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-                      <div class="tabular-nums font-bold" style="color: var(--text-main);">
-                        ${formatMoney(agg.total_price)}
-                      </div>
-                      <span style="color: var(--text-muted); font-size: 0.95rem; font-weight: 600;">Qty: ${agg.quantity}</span>
-                    </div>
-                  </li>
-                `).join('')}
-              </ul>
-            </div>`;
-      })()}
-      </div>
 
       <!-- DETAILED HISTORY TIMELINE -->
       <div class="tab-content" id="tab-timeline">
