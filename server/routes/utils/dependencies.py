@@ -14,3 +14,7 @@ def get_auth(user_management: UserManagement = Depends(get_user_management)):
 
 def get_size_management(session: AsyncSession = Depends(get_db)):
     return SizeManagement(session)
+
+
+def get_extra_management(session: AsyncSession = Depends(get_db)):
+    return ExtraManagement(session)

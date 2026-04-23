@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from .helpers.config import ASYNC_ENGINE
 from .routes.management import user_management_router
+from .routes.management import size_management_router
+from .routes.management import extra_management_router
 from .routes.authentication import auth_router
 from .models import *
 
@@ -22,8 +24,10 @@ app = FastAPI(
 )
 
 
-app.include_router(user_management_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(user_management_router, prefix="/api/v1")
+app.include_router(size_management_router, prefix="/api/v1")
+app.include_router(extra_management_router, prefix="/api/v1")
 
 
 @app.get("/api/health", tags=["Root"])
