@@ -61,6 +61,6 @@ class CategoryManagement(BaseCatalog[CategoryModel, CategoryCreate, CategoryUpda
 
     async def list_category_products(
         self, id: int, skip: int = 0, limit: int = 100
-    ) -> Sequence[CategoryRepository]:
+    ) -> Sequence[ProductResponse]:
         products = await self.repo.get_category_products(id, skip, limit)
         return products

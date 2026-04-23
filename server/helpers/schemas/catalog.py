@@ -9,7 +9,8 @@ class SizeBase(BaseModel):
 class SizeCreate(SizeBase): ...
 
 
-class SizeUpdate(SizeBase): ...
+class SizeUpdate(BaseModel):
+    name: str | None = None
 
 
 class SizeResponse(SizeBase, AuditSchema): ...
@@ -22,27 +23,29 @@ class ExtraBase(BaseModel):
 class ExtraCreate(ExtraBase): ...
 
 
-class ExtraUpdate(ExtraBase): ...
+class ExtraUpdate(BaseModel):
+    name: str | None = None
 
 
 class ExtraResponse(ExtraBase, AuditSchema): ...
 
 
 class ProductBase(BaseModel):
-    category_id: int | None = None
     name: str
+    category_id: int | None = None
     image_url: str | None = None
 
 
 class ProductCreate(ProductBase): ...
 
 
-class ProductUpdate(ProductBase): ...
+class ProductUpdate(BaseModel):
+    name: str | None = None
+    category_id: int | None = None
+    image_url: str | None = None
 
 
-class ProductResponse(ProductBase, AuditSchema):
-    extras: list[ExtraResponse] | None = None
-    size: SizeResponse | None = None
+class ProductResponse(ProductBase, AuditSchema): ...
 
 
 class CategoryBase(BaseModel):
@@ -52,8 +55,9 @@ class CategoryBase(BaseModel):
 class CategoryCreate(CategoryBase): ...
 
 
-class CategoryUpdate(CategoryBase): ...
+class CategoryUpdate(BaseModel):
+    name: str | None = None
 
 
 class CategoryResponse(CategoryBase, AuditSchema):
-    products: list[ProductResponse] | None = None
+    products: list[ProductResponse] | None = []

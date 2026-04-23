@@ -9,6 +9,8 @@ class PermissionEnum(str, Enum):
     DELETE_USERS = "delete:users"
     RESET_PASSWORD = "reset:password"
 
+    MANAGE_CATALOG = "manage:catalog"
+
 
 class RoleEnum(str, Enum):
     ADMIN = "admin"
@@ -23,6 +25,7 @@ ROLE_PERMISSIONS = {
         PermissionEnum.UPDATE_USERS,
         PermissionEnum.DELETE_USERS,
         PermissionEnum.RESET_PASSWORD,
+        PermissionEnum.MANAGE_CATALOG,
     ],
     RoleEnum.CASHIER: [
         PermissionEnum.READ_USERS_ME,
