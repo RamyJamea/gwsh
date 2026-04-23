@@ -64,7 +64,6 @@ class BaseRepository(Generic[T]):
             return db_obj
 
         except IntegrityError as e:
-            await self.session.rollback()
             raise DuplicateRecordException(f"{self.model.__name__} exists -- {e}")
 
     async def create_bulk(self, objs_in: list[dict]) -> Sequence[T]:
@@ -79,7 +78,6 @@ class BaseRepository(Generic[T]):
             return db_objs
 
         except IntegrityError as e:
-            await self.session.rollback()
             raise DuplicateRecordException(f"Record already exists -- {e}")
 
     async def update_one(self, db_obj: T, updates: dict) -> T:
@@ -90,7 +88,6 @@ class BaseRepository(Generic[T]):
             await self.session.flush()
             return db_obj
         except IntegrityError as e:
-            await self.session.rollback()
             raise DuplicateRecordException(f"Failed update -- {e}")
 
     async def delete_hard(self, db_obj: T) -> None:
@@ -98,8 +95,7 @@ class BaseRepository(Generic[T]):
             await self.session.delete(db_obj)
             await self.session.flush()
         except IntegrityError as e:
-            await self.session.rollback()
-            DatabaseConstraintException(f"Cannot delete due to dependent records: {e}")
+            raise DatabaseConstraintException(f"Cannot delete due to dependent records: {e}")
 
     async def delete_soft(self, db_obj: T) -> None:
         try:
@@ -111,7 +107,6 @@ class BaseRepository(Generic[T]):
                     f"{self.model.__name__} does not support soft deletion."
                 )
         except IntegrityError as e:
-            await self.session.rollback()
             raise DatabaseConstraintException(f"Soft delete failed: {e}")
 
     async def revive_one(self, db_obj: T) -> None:
@@ -120,5 +115,4 @@ class BaseRepository(Generic[T]):
                 db_obj.deleted_at = None
                 await self.session.flush()
         except IntegrityError as e:
-            await self.session.rollback()
             raise DuplicateRecordException(f"Failed revive -- {e}")

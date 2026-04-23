@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class ProductModel(Base, AuditMixin):
     __tablename__ = TableEnum.PRODUCTS.value
 
-    category_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.CATEGORIES.value}.id", ondelete="CASCADE"))
+    category_id: Mapped[int] = mapped_column(ForeignKey(f"{TableEnum.CATEGORIES.value}.id", ondelete="CASCADE"), nullable=True)
     name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     image_url: Mapped[str | None] = mapped_column(String(255), default=None)
 
