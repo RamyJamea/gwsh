@@ -17,9 +17,9 @@ class Authentication:
         user_obj: UserModel = await self.user_management.get_user(username)
 
         if not user_obj or not verify_password(password, user_obj.hashed_password):
-            raise UnAuthorizedException(f"Unauthorized user: {user_obj.username}")
+            raise UnAuthorizedException(f"Unauthorized user: {username}")
         if not user_obj.is_active:
-            raise InActiveException(f"Inactive user: {user_obj.username}")
+            raise InActiveException(f"Inactive user: {username}")
 
         return user_obj
 

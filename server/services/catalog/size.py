@@ -34,12 +34,12 @@ class SizeManagement:
     async def create_sizes(self, data: SizeCreate) -> SizeModel:
         try:
             new_data = await self.size_repo.create_one(data.model_dump())
-            self.session.commit()
-            self.session.refresh(new_data)
+            await self.session.commit()
+            await self.session.refresh(new_data)
             self.logger.info(f"Success create Size: {data.name}")
             return new_data
         except Exception as e:
-            self.session.rollback()
+            await self.session.rollback()
             self.logger.error(f"Failed create Size: {data.name}")
             raise RuntimeError(f"Failed to create size {data.name} -- {e}")
 
