@@ -18,3 +18,11 @@ def get_size_management(session: AsyncSession = Depends(get_db)):
 
 def get_extra_management(session: AsyncSession = Depends(get_db)):
     return ExtraManagement(session)
+
+
+def get_product_management(session: AsyncSession = Depends(get_db)):
+    return ProductManagement(session)
+
+
+def get_category_management(session: AsyncSession = Depends(get_db)):
+    return CategoryManagement(session)
