@@ -1,5 +1,9 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from .helpers.security import hash_password
+from .helpers.enums import RoleEnum
 from .helpers.config import ASYNC_ENGINE
 from .routes.management import user_management_router
 from .routes.management import size_management_router
@@ -12,6 +16,25 @@ from .models import *
 async def lifespan(app: FastAPI):
     async with ASYNC_ENGINE.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    async with AsyncSession(ASYNC_ENGINE) as session:
+        result = await session.execute(
+            select(UserModel).where(UserModel.username == "admin")
+        )
+        admin = result.scalar_one_or_none()
+
+        if not admin:
+            session.add(
+                UserModel(
+                    username="admin",
+                    email="admin@nancysgun.com",
+                    role=RoleEnum.ADMIN,
+                    hashed_password=hash_password("36951Admin@"),
+                    is_active=True,
+                )
+            )
+            await session.commit()
+
     yield
     await ASYNC_ENGINE.dispose()
 
