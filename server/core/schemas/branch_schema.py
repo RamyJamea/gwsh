@@ -27,6 +27,8 @@ class TableBase(BaseModel):
     num_chairs: int
     is_available: bool = True
     table_number: int | None = None
+    grid_x: int = 0
+    grid_y: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -38,6 +40,8 @@ class TableCreate(TableBase):
 class TableUpdate(BaseModel):
     num_chairs: int | None = None
     is_available: bool | None = None
+    grid_x: int | None = None
+    grid_y: int | None = None
 
 
 class TableRead(TableBase):

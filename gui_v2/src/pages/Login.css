@@ -1,0 +1,119 @@
+.login-screen {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg);
+}
+
+.login-split {
+  display: flex;
+  width: 100%;
+  max-width: 1000px;
+  height: 600px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.login-banner {
+  flex: 1;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  border: none;
+  border-radius: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-banner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0) 60%);
+  animation: rotate 20s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes rotate {
+  100% { transform: rotate(360deg); }
+}
+
+.banner-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.huge-logo {
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.huge-logo svg {
+  width: 48px;
+  height: 48px;
+}
+
+.huge-logo span {
+  font-size: 3rem !important;
+}
+
+.subtitle {
+  font-size: 1.125rem;
+  opacity: 0.8;
+}
+
+.login-form-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg);
+  padding: 3rem;
+}
+
+.login-form {
+  width: 100%;
+  max-width: 360px;
+  padding: 2.5rem;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.login-form h2 {
+  font-size: 1.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.login-subtitle {
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  width: 100%;
+  position: relative;
+}
+
+.password-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  background: transparent;
+  color: var(--color-text-muted);
+}

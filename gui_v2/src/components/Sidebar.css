@@ -1,0 +1,95 @@
+.sidebar {
+  width: 260px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  transition: width var(--transition-normal);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.sidebar.collapsed {
+  width: 80px;
+}
+
+.sidebar-header {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  overflow: hidden;
+  border-bottom: 1px solid transparent;
+}
+
+.sidebar.collapsed .sidebar-header {
+  padding: 0;
+  justify-content: center;
+}
+
+.sidebar.collapsed .cash-logo span {
+  display: none;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 1.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-y: auto;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.nav-item:hover {
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+
+.nav-item.active {
+  background-color: var(--color-accent);
+  color: var(--color-accent-fg);
+}
+
+.sidebar.collapsed .nav-item {
+  padding: 0.75rem;
+  justify-content: center;
+}
+
+.sidebar.collapsed .nav-label {
+  display: none;
+}
+
+.nav-icon {
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.nav-item:hover .nav-icon {
+  transform: scale(1.1);
+}
+
+.sidebar-footer {
+  padding: 1.5rem 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.text-danger {
+  color: var(--color-danger);
+}
+.nav-item:hover .text-danger {
+  color: var(--color-danger-hover);
+}

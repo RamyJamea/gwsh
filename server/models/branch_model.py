@@ -35,6 +35,8 @@ class RestaurantTable(Base, AuditMixin):
     num_chairs: Mapped[int]
     is_available: Mapped[bool] = mapped_column(default=True)
     table_number: Mapped[int | None] = mapped_column(nullable=True, default=None)
+    grid_x: Mapped[int] = mapped_column(default=0)
+    grid_y: Mapped[int] = mapped_column(default=0)
 
     branch: Mapped["Branch"] = relationship(back_populates="tables")
     orders: Mapped[list["Order"]] = relationship(back_populates="table")
