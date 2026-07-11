@@ -49,6 +49,7 @@ class OrderCreate(OrderBase):
     cashier_id: int
     branch_id: int
     table_id: int | None = None
+    destination: str | None = None
     items: list[OrderItemCreate]
 
 
@@ -68,6 +69,7 @@ class OrderResponse(OrderBase, AuditSchema):
     cashier_id: int
     branch_id: int
     table_id: int | None
+    destination: str | None = None
 
 
 class OrderDetailResponse(OrderResponse):

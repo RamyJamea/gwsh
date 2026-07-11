@@ -26,3 +26,24 @@ def get_product_management(session: AsyncSession = Depends(get_db)):
 
 def get_category_management(session: AsyncSession = Depends(get_db)):
     return CategoryManagement(session)
+
+
+def get_branch_service(session: AsyncSession = Depends(get_db)):
+    return BranchService(session)
+
+
+def get_table_service(session: AsyncSession = Depends(get_db)):
+    return TableService(session)
+
+
+def get_menu_service(session: AsyncSession = Depends(get_db)):
+    return MenuService(session)
+
+
+def get_order_service(session: AsyncSession = Depends(get_db)):
+    return OrderService(session)
+
+
+def get_order_history_service(session: AsyncSession = Depends(get_db)):
+    return OrderHistoryService(session)
+

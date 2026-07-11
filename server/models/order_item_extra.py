@@ -24,5 +24,5 @@ class OrderItemExtraModel(Base, AuditMixin):
     price_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     extra_name: Mapped[str] = mapped_column(String(255))
 
-    order_item: Mapped["OrderItemModel"] = relationship(back_populates="order_items_extras")
+    order_item: Mapped["OrderItemModel"] = relationship(back_populates="order_item_extras")
     menu_item_extra: Mapped["MenuItemExtraModel"] = relationship(back_populates="orders_items_extras")

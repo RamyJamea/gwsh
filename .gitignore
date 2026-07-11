@@ -1,0 +1,13 @@
+node_modules/
+new_figma_frontend/node_modules/
+new_figma_frontend/dist/
+.venv/
+server/.venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+*.log
+gui/*
+!gui/uploads/

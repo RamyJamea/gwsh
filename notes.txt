@@ -1,0 +1,5 @@
+docker build -t ng .
+docker run -p 8000:8000 ng
+docker tag ng jamea/ng:v0.1.0
+docker login
+docker push jamea/ng:v0.1.0

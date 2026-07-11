@@ -27,7 +27,7 @@ class OrderItemModel(Base, AuditMixin):
     size_name: Mapped[str] = mapped_column(String(255))
 
     menu_item: Mapped["MenuItemModel"] = relationship(back_populates="orders_items")
-    order: Mapped["OrderModel"] = relationship(back_populates="orders_items")
-    order_items_extras: Mapped[list["OrderItemExtraModel"]] = relationship(
+    order: Mapped["OrderModel"] = relationship(back_populates="order_items")
+    order_item_extras: Mapped[list["OrderItemExtraModel"]] = relationship(
         back_populates="order_item", cascade=ORPHAN, passive_deletes=True
     )
