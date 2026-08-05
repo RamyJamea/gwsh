@@ -109,6 +109,10 @@ async def lifespan(app: FastAPI):
             existing_columns = {row[1] for row in columns}
             if "destination" not in existing_columns:
                 await conn.execute(text("ALTER TABLE orders ADD COLUMN destination VARCHAR(50)"))
+            columns_hist = await conn.execute(text("PRAGMA table_info(histories)"))
+            existing_columns_hist = {row[1] for row in columns_hist}
+            if "payment_method" not in existing_columns_hist:
+                await conn.execute(text("ALTER TABLE histories ADD COLUMN payment_method VARCHAR(50)"))
 
     async with AsyncSession(ASYNC_ENGINE) as session:
         await seed_default_access(session)

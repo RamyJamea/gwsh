@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Filter, RefreshCw, Search, ShoppingBag } from 'lucide-react';
+import { Download, Filter, RefreshCw, Search, ShoppingBag, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { historyApi, orderApi, OrderResponse, parseApiDate, branchApi, BranchRead, userApi } from '../api-client';
 import { useAuth } from '../auth-context';
@@ -42,6 +42,19 @@ export function Orders() {
       toast.error(err.message || 'Failed to load orders');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: number) => {
+    if (!window.confirm(`Are you sure you want to delete Order #${orderId} completely? This will erase it from history and release its table.`)) {
+      return;
+    }
+    try {
+      await orderApi.delete(orderId);
+      toast.success(`Order #${orderId} deleted successfully`);
+      loadOrders();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete order');
     }
   };
 
@@ -159,12 +172,15 @@ export function Orders() {
                 <th className="px-6 py-4 font-semibold text-stone-700">Status</th>
                 <th className="px-6 py-4 font-semibold text-stone-700">Payment</th>
                 <th className="px-6 py-4 font-semibold text-stone-700 text-right">Total ({getCurrency()})</th>
+                {user?.role === 'admin' && (
+                  <th className="px-6 py-4 font-semibold text-stone-700 text-right">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200">
               {isLoading && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-stone-500">Loading orders...</td>
+                  <td colSpan={user?.role === 'admin' ? 8 : 7} className="px-6 py-8 text-center text-stone-500">Loading orders...</td>
                 </tr>
               )}
               {!isLoading && filteredOrders.map(order => (
@@ -180,11 +196,22 @@ export function Orders() {
                   <td className="px-6 py-4 capitalize text-stone-700">{order.action}</td>
                   <td className="px-6 py-4 capitalize text-stone-700">{order.payment_method || 'Pending'}</td>
                   <td className="px-6 py-4 text-right font-bold text-amber-900">{Number(order.total_amount).toFixed(2)}</td>
+                  {user?.role === 'admin' && (
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleDeleteOrder(order.id)}
+                        className="inline-flex items-center justify-center p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete Order Completely"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
               {!isLoading && filteredOrders.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-stone-500">
+                  <td colSpan={user?.role === 'admin' ? 8 : 7} className="px-6 py-8 text-center text-stone-500">
                     No orders found.
                   </td>
                 </tr>

@@ -9,8 +9,8 @@ export function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [role, setRole] = useState<'cashier'|'admin'>('cashier');
-  const [username, setUsername] = useState('cashier_1');
-  const [password, setPassword] = useState('password123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [branches, setBranches] = useState<BranchRead[]>([]);
   const [branchId, setBranchId] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -31,13 +31,8 @@ export function Login() {
 
   const handleRoleChange = (newRole: 'cashier' | 'admin') => {
     setRole(newRole);
-    if (newRole === 'admin') {
-      setUsername('admin');
-      setPassword('36951Admin@');
-    } else {
-      setUsername('cashier_1');
-      setPassword('password123');
-    }
+    setUsername('');
+    setPassword('');
   };
 
   const handleLogin = async (e: React.FormEvent) => {

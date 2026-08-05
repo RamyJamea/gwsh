@@ -33,6 +33,7 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
+    username: str | None = Field(None, min_length=3, max_length=50)
     email: EmailStr | None = None
     role: RoleEnum | None = None
     is_active: bool | None = None

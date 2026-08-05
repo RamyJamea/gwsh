@@ -312,3 +312,11 @@ class OrderService(BaseService):
 
         self.session.commit()
         return count
+
+    def delete_order_completely(self, order_id: int) -> None:
+        order = self.get_by_id(order_id)
+        if not order:
+            raise ValueError(f"Order {order_id} not found")
+        self._release_table_if_occupied(order)
+        self.session.delete(order)
+        self.session.commit()

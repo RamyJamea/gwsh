@@ -271,6 +271,7 @@ export const orderApi = {
     request("PATCH", `/orders/${id}/items/${itemId}`, data),
   removeItem: (id: number, itemId: number): Promise<OrderResponse> =>
     request("DELETE", `/orders/${id}/items/${itemId}`),
+  delete: (id: number): Promise<void> => request("DELETE", `/orders/${id}`),
 };
 
 // ----- Catalog -----

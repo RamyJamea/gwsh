@@ -296,6 +296,10 @@ class OrderRepository:
         await self.session.flush()
         return obj
 
+    async def delete(self, obj: OrderModel) -> None:
+        await self.session.delete(obj)
+        await self.session.flush()
+
 
 class OrderHistoryService:
     def __init__(self, session: AsyncSession):
@@ -309,6 +313,7 @@ class OrderHistoryService:
             cashier_id=cashier_id,
             action=action,
             total_amount_at_time=order.total_amount,
+            payment_method=order.payment_method,
         )
         self.session.add(history)
         await self.session.flush()
@@ -396,6 +401,11 @@ class OrderHistoryService:
                     "History ID": h.id,
                     "Timestamp": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                     "Action": h.action.value if hasattr(h.action, "value") else str(h.action),
+                    "Payment Way": (
+                        h.payment_method.value if getattr(h, "payment_method", None) else (
+                            h.order.payment_method.value if (h.order and getattr(h.order, "payment_method", None)) else "N/A"
+                        )
+                    ),
                     "Cashier": h.cashier.username if h.cashier else "N/A",
                     "Total Amount": float(h.total_amount_at_time or 0),
                 }
@@ -408,6 +418,11 @@ class OrderHistoryService:
                 "History ID": h.id,
                 "Timestamp": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                 "Action": h.action.value if hasattr(h.action, "value") else str(h.action),
+                "Payment Way": (
+                    h.payment_method.value if getattr(h, "payment_method", None) else (
+                        h.order.payment_method.value if (h.order and getattr(h.order, "payment_method", None)) else "N/A"
+                    )
+                ),
                 "Cashier": h.cashier.username if h.cashier else "N/A",
                 "Total Amount": float(h.total_amount_at_time or 0),
             }
@@ -490,6 +505,11 @@ class OrderHistoryService:
                     "Order ID": order.id,
                     "Table ID": order.table_id,
                     "Final Action": last_h.action.value if hasattr(last_h.action, "value") else str(last_h.action),
+                    "Payment Way": (
+                        last_h.payment_method.value if getattr(last_h, "payment_method", None) else (
+                            order.payment_method.value if getattr(order, "payment_method", None) else "N/A"
+                        )
+                    ),
                     "Final Timestamp (TRT)": (last_h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if last_h.timestamp else "N/A",
                     "Final Cashier": last_h.cashier.username if last_h.cashier else "N/A",
                     "Final Total Amount": float(last_h.total_amount_at_time or 0),
@@ -506,6 +526,11 @@ class OrderHistoryService:
                     "History ID": h.id,
                     "Timestamp (TRT)": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                     "Action": h.action.value if hasattr(h.action, "value") else str(h.action),
+                    "Payment Way": (
+                        h.payment_method.value if getattr(h, "payment_method", None) else (
+                            h.order.payment_method.value if (h.order and getattr(h.order, "payment_method", None)) else "N/A"
+                        )
+                    ),
                     "Cashier": h.cashier.username if h.cashier else "N/A",
                     "Total Amount": float(h.total_amount_at_time or 0),
                 }
@@ -519,6 +544,11 @@ class OrderHistoryService:
                 "History ID": h.id,
                 "Timestamp (TRT)": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                 "Action": h.action.value if hasattr(h.action, "value") else str(h.action),
+                "Payment Way": (
+                    h.payment_method.value if getattr(h, "payment_method", None) else (
+                        h.order.payment_method.value if (h.order and getattr(h.order, "payment_method", None)) else "N/A"
+                    )
+                ),
                 "Cashier": h.cashier.username if h.cashier else "N/A",
                 "Total Amount": float(h.total_amount_at_time or 0),
             }
@@ -808,3 +838,9 @@ class OrderService:
             await self.session.delete(order)
         await self.session.commit()
         return count
+
+    async def delete_order_completely(self, order_id: int) -> None:
+        order = await self.get(order_id)
+        await self._release_table(order.table_id)
+        await self.repo.delete(order)
+        await self.session.commit()

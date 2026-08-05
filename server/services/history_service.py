@@ -27,6 +27,7 @@ class OrderHistoryService(BaseService):
                 "cashier_id": cashier_id,
                 "action": action,
                 "total_amount_at_time": order.total_amount,
+                "payment_method": order.payment_method,
             }
         )
 
@@ -87,6 +88,11 @@ class OrderHistoryService(BaseService):
                     "Action": (
                         h.action.value if hasattr(h.action, "value") else str(h.action)
                     ),
+                    "Payment Way": (
+                        h.payment_method.value if getattr(h, "payment_method", None) else (
+                            h.order.payment_method.value if (h.order and getattr(h.order, "payment_method", None)) else "N/A"
+                        )
+                    ),
                     "Cashier": h.cashier.username if h.cashier else "N/A",
                     "Total Amount": float(h.total_amount_at_time or 0),
                 }
@@ -101,6 +107,11 @@ class OrderHistoryService(BaseService):
                 "Timestamp": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                 "Action": (
                     h.action.value if hasattr(h.action, "value") else str(h.action)
+                ),
+                "Payment Way": (
+                    h.payment_method.value if getattr(h, "payment_method", None) else (
+                        h.order.payment_method.value if (h.order and getattr(h.order, "payment_method", None)) else "N/A"
+                    )
                 ),
                 "Cashier": h.cashier.username if h.cashier else "N/A",
                 "Total Amount": float(h.total_amount_at_time or 0),
@@ -218,6 +229,11 @@ class OrderHistoryService(BaseService):
                         if hasattr(last_h.action, "value")
                         else str(last_h.action)
                     ),
+                    "Payment Way": (
+                        last_h.payment_method.value if getattr(last_h, "payment_method", None) else (
+                            order.payment_method.value if getattr(order, "payment_method", None) else "N/A"
+                        )
+                    ),
                     "Final Timestamp (TRT)": (last_h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if last_h.timestamp else "N/A",
                     "Final Cashier": (
                         last_h.cashier.username
@@ -241,6 +257,11 @@ class OrderHistoryService(BaseService):
                     "Action": (
                         h.action.value if hasattr(h.action, "value") else str(h.action)
                     ),
+                    "Payment Way": (
+                        h.payment_method.value if getattr(h, "payment_method", None) else (
+                            h.order.payment_method.value if (h.order and getattr(h.order, "payment_method", None)) else "N/A"
+                        )
+                    ),
                     "Cashier": (
                         h.cashier.username if getattr(h, "cashier", None) else "N/A"
                     ),
@@ -258,6 +279,11 @@ class OrderHistoryService(BaseService):
                 "Timestamp (TRT)": (h.timestamp + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S") if h.timestamp else "N/A",
                 "Action": (
                     h.action.value if hasattr(h.action, "value") else str(h.action)
+                ),
+                "Payment Way": (
+                    h.payment_method.value if getattr(h, "payment_method", None) else (
+                        h.order.payment_method.value if (h.order and getattr(h.order, "payment_method", None)) else "N/A"
+                    )
                 ),
                 "Cashier": h.cashier.username if getattr(h, "cashier", None) else "N/A",
                 "Total Amount": float(h.total_amount_at_time or 0),

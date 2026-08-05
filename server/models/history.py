@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from sqlalchemy import ForeignKey, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from ..helpers.enums import ActionEnum, TableEnum
+from ..helpers.enums import ActionEnum, TableEnum, PaymentEnum
 from .base import Base, AuditMixin, ORPHAN
 
 if TYPE_CHECKING:
@@ -23,6 +23,7 @@ class HistoryModel(Base, AuditMixin):
     action: Mapped[ActionEnum] = mapped_column(default=ActionEnum.CREATE)
     timestamp: Mapped[datetime] = mapped_column(server_default=func.now())
     total_amount_at_time: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    payment_method: Mapped[PaymentEnum | None] = mapped_column(nullable=True)
 
     cashier: Mapped["UserModel"] = relationship(back_populates="histories")
     order: Mapped["OrderModel"] = relationship(back_populates="histories")

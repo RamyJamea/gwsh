@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Shield, ShieldOff, UserCircle, UserPlus } from 'lucide-react';
+import { Search, Shield, ShieldOff, UserCircle, UserPlus, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { branchApi, BranchRead, userApi, UserResponse, parseApiDate } from '../api-client';
 import { formatDateOnly } from '../currency';
@@ -16,6 +16,14 @@ export function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    username: '',
+    email: '',
+    password: '',
+    role: 'cashier' as 'admin' | 'cashier',
+    branch_id: '' as string,
+  });
   const [newUser, setNewUser] = useState({
     username: '',
     email: '',
@@ -77,6 +85,45 @@ export function UserManagement() {
       setNewUser({ username: '', email: '', password: '', role: 'cashier', branch_id: String(branches[0]?.id || '') });
     } catch (err: any) {
       toast.error(err.message || 'Failed to add user');
+    }
+  };
+
+  const handleOpenEdit = (user: UserResponse) => {
+    setEditingUser(user);
+    setEditFormData({
+      username: user.username,
+      email: user.email,
+      password: '',
+      role: user.role,
+      branch_id: user.branch_id ? String(user.branch_id) : '',
+    });
+  };
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    if (!editFormData.username || !editFormData.email) {
+      toast.error('Username and Email are required');
+      return;
+    }
+
+    try {
+      const payload: any = {
+        username: editFormData.username,
+        email: editFormData.email,
+        role: editFormData.role,
+        branch_id: editFormData.role === 'admin' ? null : (editFormData.branch_id ? Number(editFormData.branch_id) : null),
+      };
+      if (editFormData.password.trim().length >= 8) {
+        payload.password = editFormData.password.trim();
+      }
+
+      const updated = await userApi.update(editingUser.username, payload);
+      setUsers(prev => prev.map(row => row.username === editingUser.username ? updated : row));
+      toast.success('User updated successfully');
+      setEditingUser(null);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update user');
     }
   };
 
@@ -160,6 +207,59 @@ export function UserManagement() {
             </form>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={!!editingUser} onOpenChange={open => !open && setEditingUser(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Employee Details</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleEditUser} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Username</Label>
+                <Input value={editFormData.username} onChange={e => setEditFormData({ ...editFormData, username: e.target.value })} placeholder="username" />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={editFormData.email} onChange={e => setEditFormData({ ...editFormData, email: e.target.value })} placeholder="email@example.com" />
+              </div>
+              <div className="space-y-2">
+                <Label>Password (leave blank to keep unchanged)</Label>
+                <Input type="password" value={editFormData.password} onChange={e => setEditFormData({ ...editFormData, password: e.target.value })} placeholder="At least 8 characters" />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={editFormData.role} onValueChange={(val: 'admin' | 'cashier') => setEditFormData({ ...editFormData, role: val })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cashier">Cashier</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editFormData.role === 'cashier' && (
+                <div className="space-y-2">
+                  <Label>Assigned Branch</Label>
+                  <Select value={editFormData.branch_id} onValueChange={(val) => setEditFormData({ ...editFormData, branch_id: val })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.map(branch => (
+                        <SelectItem key={branch.id} value={String(branch.id)}>{branch.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
+                <Button type="submit" className="bg-amber-700 hover:bg-amber-800 text-white">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
@@ -216,6 +316,16 @@ export function UserManagement() {
                   </td>
                   <td className="p-4 text-stone-500 text-sm">{formatDateOnly(parseApiDate(user.created_at))}</td>
                   <td className="p-4 text-right space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenEdit(user)}
+                      className="text-stone-700 hover:bg-stone-50"
+                      title="Edit User Details"
+                    >
+                      <Edit size={16} className="mr-2" />
+                      Edit
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
